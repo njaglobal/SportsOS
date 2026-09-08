@@ -1,9 +1,7 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
 import path from "node:path";
 
 export default defineConfig({
-  plugins: [react()],
   resolve: {
     alias: {
       "@app": path.resolve(__dirname, "src/app"),
@@ -13,5 +11,9 @@ export default defineConfig({
       "@composition": path.resolve(__dirname, "src/composition"),
       "@shared": path.resolve(__dirname, "src/shared"),
     },
+  },
+  test: {
+    environment: "node",
+    include: ["tests/**/*.test.ts"],
   },
 });

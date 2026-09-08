@@ -12,12 +12,14 @@ export interface ValueObject {}
 
 /**
  * Domain event marker. Events are produced by aggregates and represent
- * something that happened in the domain. The APPLICATION layer routes them
- * (via EventBus or other mechanisms) to interested contexts. The domain
- * itself does not depend on any port to publish events — it produces them,
- * and the application layer handles delivery.
+ * something that happened inside a single bounded context. The APPLICATION
+ * layer routes them (via an EventPublisher or other mechanisms) and may
+ * translate selected ones into IntegrationEvents for cross-context delivery.
+ * The domain itself does not depend on any port to publish events — it
+ * produces them, and the application layer handles delivery.
  *
- * See ADR-017 for cross-context interaction rules.
+ * See ADR-017 (cross-context interaction) and the application `events`
+ * contract for the DomainEvent vs IntegrationEvent distinction.
  */
 export interface DomainEvent {
   readonly eventId: string;

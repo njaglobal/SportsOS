@@ -4,12 +4,38 @@
 
 ## Current version
 
-**SportsOS Architecture v0.2.0 — Sprint 0.1 (Architecture Correction)**
+**SportsOS Architecture v0.3.0 — Sprint 1 (Application Foundation & Enforcement)**
 
 - Date: 2026-09-08
-- Sprint: 0.1 (Architecture Correction)
-- Status: Approved for Sprint 1 planning
-- Supersedes: v0.1.0 (Sprint 0)
+- Sprint: 1 (Machine-enforced boundaries + minimal application foundation)
+- Status: Active
+- Supersedes: v0.2.0 (Sprint 0.1)
+
+## What changed in v0.3.0 (Sprint 1)
+
+A **MINOR** bump: additive structure and tooling, no breaking change to the
+layer model.
+
+1. **Machine-enforced boundaries** — `dependency-cruiser` (`.dependency-cruiser.cjs`)
+   now enforces every layer and context-isolation rule; run with
+   `npm run architecture:check` (ADR-018, now implemented).
+2. **Application foundation** — `src/app/contracts/` adds `UseCase`,
+   `AppResult`/`AppError`, `Clock`, `IdGenerator`, and event contracts. The
+   generic `Repository` and `EventBus` interfaces were removed.
+3. **DomainEvent vs IntegrationEvent** — explicitly distinguished; the domain
+   keeps `DomainEvent`, the application owns `IntegrationEvent` and
+   `EventPublisher`.
+4. **Deterministic platform impls** — `SystemClock`/`FakeClock`,
+   `UuidIdGenerator`/`FakeIdGenerator`, `InMemoryEventPublisher`/`NoopEventPublisher`
+   under `src/adapters/`.
+5. **Composition root** — `src/composition/` wires production and test
+   containers without connecting a database or auth.
+6. **Deterministic test infrastructure** — `vitest`; tests under `tests/` prove
+   the clock, ID generator, event publisher, and architecture checker behavior.
+7. **Clarifications** recorded as rules R27–R30: TeamMembership is
+   team/organization-scoped (event participation is a future EventRosterEntry);
+   `tenantId` is an isolation boundary; aggregate-root status is decided by
+   invariants/lifecycle; repositories are context-specific, not generic CRUD.
 
 ## What changed in v0.2.0 (Sprint 0.1 corrections)
 
@@ -85,7 +111,7 @@ Semantic versioning, applied to the **architecture** (not the product):
 | [015](../adr/015-rewards-idempotency.md) | Rewards Idempotency and Reversal | **New** [C] |
 | [016](../adr/016-layer-port-ownership.md) | Layer and Port Ownership | **New** [C] |
 | [017](../adr/017-cross-context-interaction.md) | Cross-Context Interaction | **New** [C] |
-| [018](../adr/018-architecture-enforcement.md) | Architecture Enforcement | **New** [C] |
+| [018](../adr/018-architecture-enforcement.md) | Architecture Enforcement | **Implemented** [S1] |
 
 ## Sprint 0.1 deliverable map
 
@@ -96,7 +122,7 @@ All Sprint 0 deliverables retained. Updated documents are marked [C]:
 | Architecture overview [C] | `architecture-overview.md` |
 | Architecture rules [C] | `architecture-rules.md` |
 | Bounded contexts [C] | `bounded-contexts.md` |
-| Dependency rules [C] | `dependency-rules.md` |
+| Dependency rules [C][S1] | `dependency-rules.md` |
 | Identity model [C] | `identity-model.md` |
 | Person-role model [C] | `person-role-model.md` |
 | Organization model [C] | `organization-model.md` |
@@ -114,6 +140,7 @@ All Sprint 0 deliverables retained. Updated documents are marked [C]:
 | Client platforms | `client-platforms.md` |
 | Mobile strategy | `mobile-strategy.md` |
 | Offline resilience | `offline-resilience.md` |
-| Version [C] | `architecture-version.md` |
+| Application foundation [S1] | `application-foundation.md` |
+| Version [C][S1] | `architecture-version.md` |
 | ADRs (10 updated + 9 new) [C] | `docs/adr/` |
-| Source boundaries [C] | `src/` |
+| Source boundaries [C][S1] | `src/` (app/, adapters/, composition/, tests/) |

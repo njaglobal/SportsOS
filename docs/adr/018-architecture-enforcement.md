@@ -2,11 +2,11 @@
 
 ## Status
 
-Accepted (implementation deferred to Sprint 1)
+Accepted — **implemented in Sprint 1**.
 
 ## Date
 
-2026-09-08
+2026-09-08 (implemented 2026-09-08, Sprint 1)
 
 ## Context
 
@@ -46,8 +46,36 @@ Add machine-enforced boundary rules using `dependency-cruiser` (or
      describes the rules, the tool configuration, and how to resolve
      violations.
 
-**Implementation is deferred to Sprint 1.** This ADR documents the decision
-and the planned rules so Sprint 1 can implement them without ambiguity.
+**Implemented in Sprint 1.** This ADR documented the decision and planned
+rules; the section below records what was actually built.
+
+## Sprint 1 implementation
+
+`dependency-cruiser` (v18) was adopted. Configuration lives in
+`.dependency-cruiser.cjs`; it resolves aliases from `tsconfig.app.json` and sets
+`tsPreCompilationDeps: true` so rules can distinguish `import type` (type-only,
+erased at build) from runtime imports.
+
+Run independently with `npm run architecture:check` (scans `src` only). The same
+ruleset is exercised programmatically in `tests/architecture.test.ts`, which
+also proves the checker flags a forbidden import fixture
+(`tests/fixtures/forbidden-domain/`, outside `src`).
+
+Enforced `error`-severity rules: `no-circular`; `domain-no-app`,
+`domain-no-ports`, `domain-no-adapters`, `domain-no-composition`,
+`domain-no-presentation`, `domain-no-external-sdk`; `no-cross-context-runtime`;
+`app-no-adapters`, `app-no-composition`, `app-no-presentation`,
+`app-no-external-sdk`; `presentation-no-adapters`;
+`adapters-no-presentation-or-composition`.
+
+**Type-only cross-context decision:** `no-cross-context-runtime` forbids a
+domain context importing another context's internals **at runtime** but permits
+`import type` references, because types erase at build time and create no
+runtime coupling. This keeps the one existing legitimate case (Competition
+referencing the Sports `CompetitionMeasure` vocabulary via `import type`) legal
+while still blocking all runtime coupling. If a future slice needs a runtime
+cross-context value, it must go through an application contract, event, or
+shared identifier — not a direct import.
 
 ## Consequences
 
@@ -73,8 +101,9 @@ and the planned rules so Sprint 1 can implement them without ambiguity.
 
 ## Compliance
 
-- This ADR is the planning document; implementation occurs in Sprint 1.
-- `dependency-cruiser` configuration (`.dependency-cruiser.js`) will be added
-  in Sprint 1.
-- `npm run arch-check` script will be added to `package.json` in Sprint 1.
-- CI pipeline will include the architecture check as a required gate.
+- `dependency-cruiser` configuration added at `.dependency-cruiser.cjs`.
+- `npm run architecture:check` script added to `package.json`; runnable
+  independently of build/lint/test.
+- `tests/architecture.test.ts` asserts the real tree has zero error-severity
+  violations and that a forbidden-import fixture is flagged.
+- CI pipeline should include `architecture:check` as a required gate.

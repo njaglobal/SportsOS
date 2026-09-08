@@ -190,14 +190,47 @@ application contracts, synchronous query/service ports, domain/integration
 events, and immutable shared identifiers. Synchronous vs asynchronous is
 chosen per consistency requirement. See `dependency-rules.md`, ADR-017.
 
+## R27. [S1] TeamMembership is team/organization-scoped; event participation is a separate concept.
+
+`TeamMembership` records that a Person belongs to a Team within an Organization
+(a tenant isolation boundary). It is **not** event-scoped. Participation in a
+specific event is represented by a future `EventRosterEntry` / `CompetitionEntry`
+concept (added with a competition vertical slice), which references the event,
+the competition/division, and the participant. This keeps standing team
+membership independent of per-event rosters. See `person-role-model.md`.
+
+## R28. [S1] `tenantId` denotes an isolation boundary, not a generic association.
+
+A `tenantId` on an entity means that entity lives **inside** a tenant's
+isolation boundary and is subject to that tenant's access control. It is not a
+convenience foreign key for "an organization is involved." Historical/audit
+records may retain origin references (e.g. the organizing `tenantId` a result
+was produced under) without becoming mutable tenant-owned records. See
+`tenancy.md`, ADR-010.
+
+## R29. [S1] Aggregate-root status is decided by invariants and lifecycle, not by having an ID.
+
+A concept is an aggregate root because it owns a transactional consistency
+boundary and an independent lifecycle — not merely because it has an identifier.
+Conceptual entities are not automatically aggregate roots; candidate boundaries
+are validated through vertical slices, not fixed up front. See ADR-013.
+
+## R30. [S1] Repositories are use-case/context-specific, not a generic CRUD abstraction.
+
+The application layer defines **no** generic `Repository<T>` interface. Each
+bounded context / use-case declares the persistence contract it actually needs
+when a slice requires it, so aggregates are not forced into identical CRUD
+semantics. See `application-foundation.md`, ADR-016, ADR-018.
+
 ## Enforcement
 
 - **TypeScript path aliases** keep layers navigable (`@domain`, `@app`, `@ports`,
-  `@adapters`, `@shared`).
-- **ESLint `import/no-cycle`** prevents circular dependencies.
-- **Code review** must reject any `@domain` import of `@ports` or `@adapters`
-  or any platform SDK [C], and any `@app` import of `@adapters`.
-- **Sprint 1 machine-enforced boundaries** [C]: `dependency-cruiser` or
-  `eslint-plugin-boundaries` rules to automate layer and context isolation.
-  See `docs/architecture/enforcement.md` (to be created in Sprint 1) and
-  ADR-018.
+  `@adapters`, `@composition`, `@shared`).
+- **`dependency-cruiser`** [S1] machine-enforces all layer and context-isolation
+  rules. Run independently with `npm run architecture:check`; the same ruleset
+  is asserted in `tests/architecture.test.ts`. See `dependency-rules.md` and
+  ADR-018. Runtime cross-context domain imports fail the check; type-only
+  references are permitted.
+- **ESLint `import/no-cycle`** is a secondary guard against circular dependencies.
+- **Code review** remains a backstop but is no longer the primary boundary
+  mechanism.

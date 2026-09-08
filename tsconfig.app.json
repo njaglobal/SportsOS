@@ -27,6 +27,7 @@
       "@domain/*": ["src/domain/*"],
       "@ports/*": ["src/ports/*"],
       "@adapters/*": ["src/adapters/*"],
+      "@composition/*": ["src/composition/*"],
       "@shared/*": ["src/shared/*"]
     }
   },

@@ -9,7 +9,7 @@ export default [
   { ignores: ["dist", "node_modules", ".vite"] },
   js.configs.recommended,
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsparser,
       parserOptions: { ecmaVersion: "latest", sourceType: "module" },
@@ -18,6 +18,7 @@ export default [
         window: "readonly",
         document: "readonly",
         Blob: "readonly",
+        crypto: "readonly",
       },
     },
     plugins: {
