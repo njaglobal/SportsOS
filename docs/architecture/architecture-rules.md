@@ -3,30 +3,38 @@
 > Mandatory architectural principles and invariants for SportsOS.
 > Each rule is numbered to match the sprint brief and is normative: a PR that
 > violates a rule must not be merged without an ADR superseding it.
+>
+> **Sprint 0.1 corrections** are marked with [C]. See ADRs 010–017 for the
+> correction rationale.
 
 ## R1. One Person may hold many platform roles.
 
-A `Person` is the natural/legal identity. Roles (`athlete`, `coach`,
-`organizer`, `official`, `team_manager`, `guardian`) are separate, scoped
-projections. A Person may hold several roles simultaneously, in different
-scopes (global, organization, team, event). See `person-role-model.md`.
+A `Person` is the natural/legal identity. Roles are derived from scoped
+memberships and assignments (`OrganizationMembership`, `OrganizationRoleAssignment`,
+`TeamMembership`, `EventAssignment`, `PlatformRoleAssignment`), not a single
+flat `PersonRole` aggregate. A Person may hold several roles simultaneously,
+in different scopes. See `person-role-model.md`, `authorization.md`, ADR-012.
 
 ## R2. One Person has at most one Sports ID.
 
 The Sports ID is a permanent, platform-issued identifier. It is issued once
-and never reissued to a different person. See `identity-model.md`, ADR-002.
+and never reissued to a different person. The Sports ID is **platform-global
+identity** [C], not tenant/organization-owned. See `identity-model.md`,
+`tenancy.md`, ADR-002, ADR-010.
 
-## R3. Athlete identity is independent of sport.
+## R3. [C] A Person MAY have at most one AthleteProfile. A Person does not automatically become an athlete.
 
-An `Athlete` is a single role projection of a `Person`. There is one Athlete
-per Person, not one Athlete per sport. Sport participation is a separate
-many-to-many relationship. See ADR-003.
+An `AthleteProfile` is an optional sport-independent sporting identity
+projection. A Person may exist only as a coach, guardian, official, organizer,
+staff member, sponsor representative, etc., with no AthleteProfile. When an
+AthleteProfile exists, it is sport-independent. See ADR-003, ADR-010,
+`identity-model.md`.
 
-## R4. Athlete ↔ Sport is many-to-many.
+## R4. AthleteProfile ↔ Sport is many-to-many.
 
-`AthleteSportParticipation` links an Athlete to many Sports (and Disciplines),
-and a Sport to many Athletes. A single athlete may participate in and win
-across multiple sports throughout their lifetime.
+`AthleteSportParticipation` links an AthleteProfile to many Sports (and
+Disciplines), and a Sport to many AthleteProfiles. A single athlete may
+participate in and win across multiple sports throughout their lifetime.
 
 ## R5. Historical competition records must be auditable and protected from destructive mutation.
 
@@ -56,7 +64,8 @@ See ADR-007.
 
 `QrCredentialKind` discriminates `permanent_sports_id` (long-lived, person-scoped)
 from `event_credential` (short-lived, event-scoped, rotatable). See
-`qr-credentials-model.md`.
+`qr-credentials-model.md`. SportsId and QrCredential are separate concepts
+[C] — rotating/revoking a credential never changes the Person's SportsId.
 
 ## R10. QR identity, biometric/device authentication, and identity verification are separate concepts.
 
@@ -69,10 +78,9 @@ These are independent and compose; none implies another. See
 
 ## R11. Competition architecture must support team, individual, timed, measured, and multi-participant events.
 
-`CompetitionEvent` carries a `format` (single_elimination, round_robin,
-timed_finals, measured_final, judged, …) and a `participantKind`
-(individual | team). The `measure` field drives scoring semantics. Formats are
-extensible without schema change. See ADR-005.
+Competitions carry a `format` and a `participantKind` (individual | team). The
+`measure` field drives scoring semantics. Formats are extensible without
+schema change. See ADR-005, ADR-013, `competition-model.md`.
 
 ## R12. Geography must not hard-code Philippine administrative structures.
 
@@ -85,47 +93,60 @@ columns. See `geography-localization.md`.
 `Money` carries an ISO 4217 `currency` code. Amounts are integer minor units.
 See `commerce-model.md`.
 
-## R14. Multi-tenancy and organization isolation must be explicit.
+## R14. [C] Multi-tenancy and organization isolation must be explicit, but NOT every entity is tenant-owned.
 
-Every tenant-scoped entity carries a `tenantId`. Repositories filter by
-`tenantId` by default. Cross-tenant access is never implicit. See
-`tenancy.md`, ADR-004.
+Entities are classified by ownership (see `tenancy.md`, ADR-010):
+**platform-global**, **reference data**, **person-owned**,
+**organization/tenant-owned**, **event-scoped**, **historical/audit**. Only
+organization/tenant-owned and event-scoped entities carry `tenantId`.
+Platform-global entities (Person, SportsId, Sport, Discipline) and
+person-owned entities (AthleteProfile) do NOT carry `tenantId`. Cross-tenant
+access to tenant-owned data is never implicit.
 
 ## R15. Authorization must be permission-based, not hard-coded role checks.
 
-Authorization evaluates `Permission` values against a `PersonRole` scope. Code
-must not branch on role names (`if role === 'organizer'`). See
-`authorization.md`.
+Authorization evaluates `Permission` values against scopes derived from
+memberships/assignments [C]. Code must not branch on role names
+(`if role === 'organizer'`). Permissions derive from scoped
+`OrganizationMembership`, `TeamMembership`, `EventAssignment`, and
+`PlatformRoleAssignment`, not from permanent global person roles. See
+`authorization.md`, ADR-012.
 
 ## R16. Financial operations must be auditable.
 
-Every charge, refund, settlement, and adjustment produces a
-`PaymentLedgerEntry`. The ledger is append-only. See `commerce-model.md`,
-`audit-integrity.md`.
+Every charge, refund, settlement, and adjustment produces append-only records
+(`PaymentTransaction`, `Refund`, `Settlement`). The financial ledger is
+append-only [C]. See `commerce-model.md`, `audit-integrity.md`, ADR-014.
 
 ## R17. Reward issuance must support fraud controls and event verification.
 
 `RewardsLedgerEntry` carries `verified` and `verificationRef`. Issuance for an
 event result must be verified before the balance projection counts it as
-available. See `rewards-model.md`.
+available. Issuance is idempotent [C] — `idempotencyKey`, `sourceIdentity`,
+`earningRuleId`/`earningRuleVersion` prevent duplicate awards. Corrected
+results use reversal/adjustment entries, never edits to original entries. See
+`rewards-model.md`, ADR-015.
 
 ## R18. Registration participant and payment payer must be separate concepts.
 
-A `Registration` has a `participantId` (Athlete or Team) and a separate
+A `Registration` has a `participantId` (AthleteProfile or Team) and a separate
 `payerPersonId`. A guardian may pay for a minor athlete. See
 `registration-model.md`, ADR-008.
 
 ## R19. Minors/guardian relationships must be supportable.
 
 A `Person` may have a `guardianId` pointing to another `Person`. Guardian
-consent flows are modeled on this relationship. See `identity-model.md`.
+consent flows are modeled on this relationship. The architecture explicitly
+considers minors in retention/privacy [C]. See `identity-model.md`,
+`audit-integrity.md`, ADR-011.
 
-## R20. Historical sports records must not disappear because an account/entity is deleted.
+## R20. [C] Historical sports records must not disappear because an account/entity is deleted — but blanket "soft delete only" is replaced by a layered retention model.
 
-Deletion of a Person or account is **soft** and revokes credentials; it never
-deletes historical results, achievements, or ledger entries. Results reference
-the Athlete (which references the Person); the Person is retained in an
-immutable identity archive. See `audit-integrity.md`.
+Retention is separated into: account closure, Person deactivation, identity
+archival, legal/business retention, anonymization/pseudonymization, historical
+competition preservation, and audit/financial retention. Historical
+sporting/financial records may be preserved without retaining unnecessary
+personal data indefinitely. See `audit-integrity.md`, ADR-011.
 
 ## R21. Domain/application logic must be reusable across web and future Android/iOS delivery.
 
@@ -137,8 +158,9 @@ ADR-009.
 
 Camera, QR scanner, push, secure storage, biometrics, file upload, deep links,
 sharing, location, offline sync — all are ports in `src/ports/native-ports.ts`,
-implemented by adapters per platform. See `client-platforms.md`,
-`mobile-strategy.md`.
+implemented by adapters per platform. Native platform ports are owned by the
+application layer, NOT the domain [C]. See `client-platforms.md`,
+`mobile-strategy.md`, ADR-016.
 
 ## R23. Architecture must allow future limited offline workflows for event operations without implementing them now.
 
@@ -148,16 +170,34 @@ sprint. See `offline-resilience.md`.
 
 ## R24. Infrastructure may later be replaced without rewriting core business logic.
 
-Ports are owned by the application/domain layer. Adapters implement them.
+Ports are owned by the application layer [C]. Adapters implement them.
 Swapping Supabase for another Postgres provider, or Stripe for another
-processor, requires only a new adapter. See `dependency-rules.md`.
+processor, requires only a new adapter. See `dependency-rules.md`, ADR-016.
+
+## R25. [C] Domain must not depend on native/browser/infrastructure ports.
+
+The domain layer contains business model and invariants only. It must NOT
+import from `@ports` or any infrastructure/native capability. Application
+owns orchestration and required external capability contracts. Repository,
+EventBus, Clock, and IdGenerator are application-owned ports. See
+`dependency-rules.md`, ADR-016.
+
+## R26. [C] Cross-context interaction is not limited to EventBus.
+
+Bounded-context domain internals must not directly depend on another context's
+repositories or domain internals. Cross-context interaction may use: published
+application contracts, synchronous query/service ports, domain/integration
+events, and immutable shared identifiers. Synchronous vs asynchronous is
+chosen per consistency requirement. See `dependency-rules.md`, ADR-017.
 
 ## Enforcement
 
 - **TypeScript path aliases** keep layers navigable (`@domain`, `@app`, `@ports`,
   `@adapters`, `@shared`).
 - **ESLint `import/no-cycle`** prevents circular dependencies.
-- **Code review** must reject any `@domain` or `@app` import of `@adapters` or
-  any platform SDK.
-- A future `eslint-plugin-boundaries` or `dependency-cruiser` rule set may
-  automate layer enforcement; see ADR backlog.
+- **Code review** must reject any `@domain` import of `@ports` or `@adapters`
+  or any platform SDK [C], and any `@app` import of `@adapters`.
+- **Sprint 1 machine-enforced boundaries** [C]: `dependency-cruiser` or
+  `eslint-plugin-boundaries` rules to automate layer and context isolation.
+  See `docs/architecture/enforcement.md` (to be created in Sprint 1) and
+  ADR-018.

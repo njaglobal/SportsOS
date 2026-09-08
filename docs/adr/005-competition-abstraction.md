@@ -17,24 +17,27 @@ schema changes or code branches in other contexts.
 
 ## Decision
 
-1. **EventContainer** is a container (kind: `tournament` | `league` |
-   `standalone`) that holds one or more **CompetitionEvent**s.
-2. **CompetitionEvent** carries:
-   - `format` (extensible enum: single_elimination, double_elimination,
-     round_robin, swiss, timed_finals, measured_final, judged,
-     group_then_knockout, …).
+1. **CompetitionEvent** (renamed from EventContainer) is the top-level
+   organized occurrence (kind: `tournament` | `league` | `standalone`),
+   organized by an Organization [C].
+2. **Competition** is an independent aggregate (not a child entity of
+   CompetitionEvent) that carries [C]:
+   - `eventId` — reference to parent CompetitionEvent by typed ID.
+   - `format` (extensible enum).
    - `participantKind` (`individual` | `team`).
-   - `measure` (from the Discipline: timed, measured_distance, measured_score,
-     judged, head_to_head, placement).
-3. The **participant abstraction** is a discriminated union: `participantId`
-   is `Id<"Athlete">` or `Id<"Team">` depending on `participantKind`.
-4. **Format is data, not a code branch in other contexts.** Results and
-   Registration treat format opaquely; only the Competition context
-   interprets format for bracket/draw structure (future aggregate).
-5. **Scoring/results belong to a separate context** (Results & Achievements),
-   not Competition. Competition owns structure; Results owns outcomes.
+   - `measure` (from the Discipline).
+3. **Division / Category** is an independent aggregate referencing Competition
+   by ID [C].
+4. **Stage** is an independent aggregate referencing Division by ID [C].
+5. **Contest** (future) is an independent aggregate referencing Stage by ID,
+   discriminated by ContestKind (match/heat/bout/race) [C].
+6. The **participant abstraction** is a discriminated union: `participantId`
+   is `Id<"AthleteProfile">` or `Id<"Team">` depending on `participantKind` [C].
+7. **Format is data, not a code branch in other contexts.**
+8. **Scoring/results belong to a separate context** (Results & Achievements),
+   not Competition.
 
-See `competition-model.md`, `results-achievements-model.md`.
+See `competition-model.md`, `results-achievements-model.md`, ADR-013.
 
 ## Consequences
 
@@ -46,8 +49,9 @@ See `competition-model.md`, `results-achievements-model.md`.
 - Results immutability is independent of bracket mutations.
 
 **Negative:**
-- The bracket/draw structure per format is a future aggregate (not modeled
-  this sprint) — but the seam is clean.
+- The bracket/draw structure per format is modeled via Stage/Contest
+  aggregates (future) [C] — each level is an independent lifecycle to avoid
+  unbounded aggregates at national scale.
 - Participant type discrimination must be enforced where `participantId` is
   consumed.
 
@@ -62,6 +66,8 @@ See `competition-model.md`, `results-achievements-model.md`.
 
 ## Compliance
 
-- `CompetitionEvent.format`, `.participantKind`, `.measure` are required.
+- `Competition.format`, `.participantKind`, `.measure` are required [C].
+- `CompetitionEvent`, `Competition`, `Division`, `Stage`, `Contest` are
+  independent aggregates referencing parents by typed ID [C].
 - Results context records outcomes without branching on format.
 - New formats are added to the `EventFormat` union without other changes.

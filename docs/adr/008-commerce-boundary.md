@@ -19,21 +19,25 @@ logic must not be coupled to money movement.
 
 ## Decision
 
-1. **Commerce is its own bounded context**, owning `Payment` and the
-   append-only `PaymentLedgerEntry`. It links to Registration and Persons by
-   typed ID only.
+1. **Commerce is its own bounded context**, owning a separated set of
+   concepts: `RegistrationCharge`, `Order`, `PaymentAttempt`,
+   `PaymentTransaction`, `Refund`, `Settlement`, `OrganizerPayout` [C]. It
+   links to Registration and Persons by typed ID only. See ADR-014.
 2. **Participant and payer are separate.** `Registration.participantId`
    (Athlete/Team) and `Registration.payerPersonId` (Person) are distinct
    fields. `Payment.payerPersonId` matches the registration's payer.
 3. **Money is multi-currency.** `Money` carries an ISO 4217 `currency` code
    and integer minor units. No hard-coded PHP (R13).
-4. **Financial operations are append-only auditable.** Every charge, refund,
-   settlement, and adjustment produces a `PaymentLedgerEntry`. `Payment.status`
-   is a projection of the ledger. Refunds are new entries, not mutations.
-5. **Registration and Commerce communicate via events**, not direct calls:
-   `RegistrationSubmitted` → Commerce creates a payment obligation;
-   `PaymentCaptured` → Registration advances status. This keeps payment
-   providers swappable (R24).
+4. **Financial operations are append-only auditable** [C].
+   `PaymentTransaction`, `Refund`, `Settlement`, and `OrganizerPayout` are
+   append-only. `Order.status` is a projection of its transactions and
+   refunds. Multiple `PaymentAttempt`s may exist for one `Order` (e.g. failed
+   retry then success) [C]. Refunds are new entries, not mutations.
+5. **Registration and Commerce communicate via events and/or synchronous
+   service ports** [C] (see ADR-017): `RegistrationSubmitted` → Commerce
+   creates a charge and Order; `PaymentTransactionCaptured` → Registration
+   advances status. Synchronous query ports may be used when immediate
+   consistency is needed.
 6. A future `PaymentGatewayPort` abstracts provider interactions; webhook
    signature verification happens in the adapter.
 
@@ -66,6 +70,8 @@ See `commerce-model.md`, `registration-model.md`.
 ## Compliance
 
 - `Money.currency` is ISO 4217; amounts are integer minor units.
-- `Payment.payerPersonId` is distinct from `Registration.participantId`.
-- `PaymentLedgerEntry` is append-only.
-- Registration ↔ Commerce communicate via `EventBus` events.
+- `Order.payerPersonId` is distinct from `Registration.participantId` [C].
+- `PaymentTransaction`, `Refund`, `Settlement`, `OrganizerPayout` are
+  append-only [C].
+- Multiple `PaymentAttempt`s per `Order` are supported [C].
+- Registration ↔ Commerce may use events or synchronous service ports [C].

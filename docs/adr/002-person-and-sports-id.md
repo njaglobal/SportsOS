@@ -25,20 +25,26 @@ must be permanent and auditable.
 Separate three concepts:
 
 1. **Person** — the permanent natural/legal identity. Owns the Sports ID.
-   Survives account deletion via soft-delete + immutable identity archive.
-   Carries `guardianId` for minor/guardian relationships.
+   Survives account closure via a layered lifecycle (deactivation → archival →
+   anonymization) [C]. Carries `guardianId` for minor/guardian relationships.
+   **Platform-global** [C] — no `tenantId`; does not belong to any org/event.
 2. **User** — an authentication subject (credential holder). Tied to a login
    account; can be disabled/recreated. A minor may have no User; a guardian's
    User acts on their behalf. Never the source of identity.
 3. **Sports ID** — a permanent, platform-issued identifier. One per Person
    (R2). Never reissued to another Person. Revocable but never reused.
+   **Platform-global** [C] — not tenant/organization-owned. Separate from
+   QrCredential (see ADR-007, ADR-010).
 
 Additionally:
-- A Person has **one** `Athlete` projection (sport-independent — see ADR-003).
-- Account "deletion" is soft: disable User, revoke QR credentials, archive
-  Person; historical records untouched (R20).
+- A Person **MAY** have at most one `AthleteProfile` (sport-independent,
+  optional — see ADR-003) [C]. A Person does not automatically become an
+  athlete.
+- Account closure is layered: disable User, revoke QR credentials, deactivate
+  Person, then archive; after retention, anonymize [C]. Historical records
+  are preserved throughout. See ADR-011.
 - QR credentials reference the Person by an opaque token; they carry no
-  profile data (R8, ADR-007).
+  profile data (R8, ADR-007). SportsId and QrCredential are separate [C].
 
 See `identity-model.md`.
 
@@ -52,8 +58,9 @@ See `identity-model.md`.
 
 **Negative:**
 - Slightly more entities to model (Person vs User vs Athlete).
-- Must enforce "one Sports ID per Person" and "one Athlete per Person"
-  invariants at the application/adapter layer.
+- Must enforce "one Sports ID per Person" and "at most one AthleteProfile
+  per Person" [C] invariants at the application/adapter layer.
+- Retention/anonymization policy must be defined per jurisdiction [C].
 
 ## Alternatives considered
 
@@ -69,5 +76,7 @@ See `identity-model.md`.
 
 - `Person.sportsId` is `SportsId | null` (issued once).
 - `Person.guardianId` is `Id<"Person"> | null`.
-- Application layer enforces one-Sports-ID-per-Person and one-Athlete-per-Person.
-- Soft-delete + archive pattern documented in `audit-integrity.md`.
+- `Person` has no `tenantId` [C] — platform-global.
+- `Person.lifecycleStatus` tracks layered lifecycle [C].
+- Application layer enforces one-Sports-ID-per-Person and at-most-one-AthleteProfile-per-Person [C].
+- Layered retention model documented in `audit-integrity.md`, ADR-011 [C].

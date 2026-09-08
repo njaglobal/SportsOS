@@ -18,32 +18,35 @@ duplicate achievements, and make a unified Sports Passport impossible.
 
 ## Decision
 
-Model **one `Athlete` per Person**, sport-independent. Sport participation is
-a separate **many-to-many** relationship (`AthleteSportParticipation`) linking
-an Athlete to many Sports and Disciplines.
+Model **at most one `AthleteProfile` per Person**, sport-independent and
+**optional** [C]. A Person does not automatically become an athlete; they may
+exist only as a coach, guardian, official, organizer, staff member, or sponsor
+representative. When an AthleteProfile exists, sport participation is a
+separate **many-to-many** relationship (`AthleteSportParticipation`).
 
 ```typescript
-interface Athlete {
-  id: Id<"Athlete">;
+interface AthleteProfile {
+  id: Id<"AthleteProfile">;
   personId: Id<"Person">;
-  tenantId: Id<"Tenant">;
+  // no tenantId — person-owned [C]
   // no sport field — sport-independent
 }
 
 interface AthleteSportParticipation {
-  athleteId: Id<"Athlete">;
+  athleteProfileId: Id<"AthleteProfile">;
   sportId: Id<"Sport">;
   disciplineId: Id<"Discipline"> | null;
   active: boolean;
 }
 ```
 
-The `Athlete` entity carries only `personId` and `tenantId`. All sport-specific
-data lives on the participation link, not on the Athlete. Results, Achievements,
-and the Rewards ledger reference the Athlete (not a sport-specific athlete
-variant), so a person's record across sports is unified.
+The `AthleteProfile` entity carries only `personId`. It is **person-owned**
+(not tenant/organization-owned) [C]. All sport-specific data lives on the
+participation link. Results, Achievements, and the Rewards ledger reference
+the AthleteProfile (not a sport-specific variant), so a person's record across
+sports is unified.
 
-See `sports-model.md`, `identity-model.md`.
+See `sports-model.md`, `identity-model.md`, ADR-010.
 
 ## Consequences
 
@@ -69,6 +72,6 @@ See `sports-model.md`, `identity-model.md`.
 
 ## Compliance
 
-- `Athlete` type has no sport field.
+- `AthleteProfile` type has no sport field and no `tenantId` [C].
 - `AthleteSportParticipation` is the only sport linkage.
-- Results/Achievements/Rewards reference `Id<"Athlete">`.
+- Results/Achievements/Rewards reference `Id<"AthleteProfile">` [C].

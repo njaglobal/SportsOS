@@ -22,17 +22,20 @@ spendable. A mutable "balance" column would be unauditable and race-prone.
 2. `RewardsBalance` is a **derived projection** of the ledger, recomputable
    from it. It is never mutated directly; there is no "update balance"
    operation.
-3. Entry kinds: `issuance` (positive), `redemption` (negative), `adjustment`
-   (negating reversal or correction), `expiry` (negative).
-4. **Issuance is conditional on verification.** An issuance starts
-   `verified: false`; it counts toward `pending`, not `available`. After
-   event verification/fraud checks, it becomes `verified: true` and counts
-   toward `available`. Voiding a result appends a negating `adjustment`
-   (R17).
+3. Entry kinds: `issuance` (positive), `reversal` (negative, undoes a
+   specific issuance via `reversesEntryId`), `adjustment` (manual correction),
+   `redemption` (negative), `expiry` (negative) [C].
+4. **Issuance is conditional on verification and idempotent** [C]. An
+   issuance starts `verified: false`; it counts toward `pending`, not
+   `available`. After event verification/fraud checks, it becomes
+   `verified: true`. `idempotencyKey`, `sourceIdentity`, `earningRuleId`, and
+   `earningRuleVersion` prevent duplicate awards. Voiding a result appends a
+   `reversal` entry (not an `adjustment`) [C].
 5. **Achievements and rewards are separate.** Issuing an Achievement does not
    issue points; points issuance is an independent decision in the Rewards
    context (R6).
-6. Reversals/clawbacks are new entries, never mutations.
+6. Reversals/clawbacks are new entries (`reversal` kind with
+   `reversesEntryId`), never mutations [C]. See ADR-015.
 
 See `rewards-model.md`, `results-achievements-model.md`.
 
@@ -65,3 +68,5 @@ See `rewards-model.md`, `results-achievements-model.md`.
 - `RewardsBalance.available` excludes unverified issuances.
 - No code path mutates a ledger entry.
 - Achievements and rewards issuance are independent.
+- Idempotency key prevents duplicate awards [C].
+- `reversal` entry kind used for result voiding [C].

@@ -1,81 +1,126 @@
 # Person-Role Model
 
-> One Person, many roles. See ADR-002, `authorization.md`, and R1.
+> One Person, many roles — but roles are derived from scoped memberships and
+> assignments, not a single flat PersonRole aggregate.
+> See ADR-002, ADR-012, `authorization.md`, R1, R15.
 
-## Model
+## [C] Corrected model
 
-A `PersonRole` binds a `Person` to a `RoleKind` within a `RoleScope`. A Person
-may hold many `PersonRole` entries simultaneously.
+Sprint 0 had a single `PersonRole` aggregate binding a Person to a `RoleKind`
+within a `RoleScope`. Sprint 0.1 re-evaluates this: authorization is derived
+from **scoped memberships and assignments**, not permanent global person roles.
+The `PersonRole` aggregate is replaced by separate concepts:
+
+| Concept | What it represents | Scope |
+|---|---|---|
+| `PlatformRoleAssignment` | Platform-level admin/support capabilities | Platform |
+| `OrganizationMembership` | A Person belongs to an Organization | Organization |
+| `OrganizationRoleAssignment` | A Person holds a role within an org (organizer, official, coach, team_manager, staff, sponsor_representative) | Organization |
+| `TeamMembership` | A Person/AthleteProfile is on a Team | Team |
+| `EventAssignment` | A Person is assigned to an Event in a capacity (official, scorer, marshal, timekeeper, judge) | Event |
+| `GuardianRelationship` | A Person is guardian of a minor Person | Person |
 
 ```typescript
-type RoleKind =
-  | "athlete" | "coach" | "organizer"
-  | "official" | "team_manager" | "guardian";
-
-interface PersonRole {
+// Platform-level
+interface PlatformRoleAssignment {
+  id: Id<"PlatformRoleAssignment">;
   personId: Id<"Person">;
-  role: RoleKind;
-  scope: RoleScope;
+  role: "platform_admin" | "platform_support";
 }
 
-type RoleScope =
-  | { kind: "global" }
-  | { kind: "organization"; organizationId: Id<"Organization"> }
-  | { kind: "team"; teamId: Id<"Team"> }
-  | { kind: "event"; eventId: Id<"Event"> };
+// Organization-level
+interface OrganizationMembership {
+  id: Id<"OrganizationMembership">;
+  personId: Id<"Person">;
+  organizationId: Id<"Organization">;
+  tenantId: Id<"Tenant">;
+}
+
+interface OrganizationRoleAssignment {
+  id: Id<"OrganizationRoleAssignment">;
+  membershipId: Id<"OrganizationMembership">;
+  role: OrganizationRoleKind;
+}
+
+// Team-level
+interface TeamMembership {
+  id: Id<"TeamMembership">;
+  personId: Id<"Person">;
+  athleteProfileId: Id<"AthleteProfile"> | null;
+  teamId: Id<"Team">;
+  tenantId: Id<"Tenant">;
+}
+
+// Event-level
+interface EventAssignment {
+  id: Id<"EventAssignment">;
+  personId: Id<"Person">;
+  eventId: Id<"Event">;
+  tenantId: Id<"Tenant">;
+  capacity: EventAssignmentCapacity;
+}
 ```
 
-## Scope semantics
+## Why separate aggregates instead of one PersonRole?
 
-- **global** — the role applies platform-wide (e.g. a global official).
-- **organization** — the role applies within one organization (e.g. a coach
-  of Club X).
-- **team** — the role applies to one team (e.g. team manager of Team Y).
-- **event** — the role applies to one event (e.g. an official for Event Z).
+1. **Different lifecycles.** A membership persists for years; an event
+   assignment lasts for one event. Mixing them in one aggregate creates
+   awkward add/remove semantics.
+2. **Different concurrency.** Event assignments change frequently during an
+   event; org memberships change rarely. Separate aggregates avoid lock
+   contention.
+3. **Permissions derive from memberships, not from a flat role list.** An
+   `organizer` permission is derived from an `OrganizationRoleAssignment`
+   within an `OrganizationMembership`. This is more precise than "Person has
+   organizer role."
+4. **No hard-coded role authorization.** The permission catalog maps
+   memberships/assignments to permissions. Adding a new role kind is a new
+   assignment type, not a change to a central role enum.
 
-A Person may be a coach in Organization A and an athlete in Team B at the same
-time. Roles are additive, not exclusive.
+## AthleteProfile vs athlete participation
 
-## Athlete role vs Athlete entity
+Becoming an athlete is a two-step concept:
 
-There is a deliberate distinction:
+1. **AthleteProfile creation** — a Person optionally gets an AthleteProfile
+   (sport-independent, person-owned). This is the enduring sporting identity.
+2. **AthleteSportParticipation** — the AthleteProfile links to specific sports.
+3. **TeamMembership** — a Person/AthleteProfile joins a Team (organization-scoped).
 
-- **Athlete role** (`PersonRole.role === "athlete"`) — grants athlete
-  **permissions** in a scope (e.g. register for events, view own results).
-- **Athlete entity** (`Athlete`) — the **competition-domain projection** of a
-  Person, referenced by results, achievements, and the rewards ledger.
-
-A Person gains the athlete **role** to be permitted to compete; the
-`Athlete` entity is the enduring record of their sporting identity. The two
-are linked via `personId`.
+A Person may be a coach (`OrganizationRoleAssignment`) without ever having an
+AthleteProfile. A Person may be a guardian (`GuardianRelationship`) without
+any org membership. These are independent.
 
 ```mermaid
 flowchart LR
-  Person -- "personId" --> Athlete
-  Person -- "personId + role + scope" --> PersonRole
-  PersonRole -- "role === athlete" -.permits.-> Athlete
+  Person -- "optional" --> AthleteProfile
+  Person -- "joins" --> OrganizationMembership
+  OrganizationMembership -- "assigned role" --> OrganizationRoleAssignment
+  Person -- "joins" --> TeamMembership
+  Person -- "assigned to" --> EventAssignment
+  Person -- "guardian of" --> GuardianRelationship
+  AthleteProfile -- "participates in" --> AthleteSportParticipation
 ```
 
-## Guardian role
+## Guardian relationship
 
-The `guardian` role is scoped to a Person (the minor). It is held by the
-guardian Person and grants permission to act on behalf of the minor
-(registrations, payments, credential management). The guardian relationship
-is also recorded directly on the minor's `Person.guardianId` for identity
-purposes (see `identity-model.md`).
+The `GuardianRelationship` is a separate concept from org membership. It is
+scoped to a Person (the minor), not to an Organization. It grants permissions
+to act on behalf of the minor (registrations, payments, credential management).
+The relationship is also recorded on `Person.guardianId` for identity purposes.
 
 ## Multi-role invariants
 
-1. Roles are **append/grant and revoke** — never hard-coded checks on names.
-2. A role grant is always **scoped**; there is no un-scoped role.
+1. Memberships/assignments are **grant and revoke** — never hard-coded checks
+   on role names.
+2. Every assignment is **scoped** (platform, organization, team, event, person).
 3. Role evaluation is **permission-based** (R15). Code checks `can(person,
    permission, scope)`, never `person.role === "organizer"`. See
    `authorization.md`.
-4. Granting/revoking roles is **auditable** (R16-style audit trail).
+4. Granting/revoking memberships and assignments is **auditable**.
 
 ## Permissions (summary)
 
 Permissions are defined per context (e.g. `competition.event.create`,
 `registration.submit`, `rewards.issuance.verify`). The authorization context
-resolves whether a Person's roles grant a given permission in a given scope.
-Full permission catalog is defined in `authorization.md`.
+resolves whether a Person's memberships/assignments grant a given permission
+in a given scope. Full permission catalog is in `authorization.md`.

@@ -1,30 +1,145 @@
 # Commerce Model
 
-> Payment / commerce boundary, multi-currency, and append-only financial audit.
-> See ADR-008, R13, R16.
+> Commerce boundary, multi-currency, append-only financial audit, and the
+> conceptual separation of commerce concepts. See ADR-008, ADR-014, R13, R16.
 
-## Commerce boundary
+## [C] Corrected commerce model
 
-The Commerce context owns **money movement**. It does not own registrations,
-participants, or results. It links to them by typed ID only. This isolation
-means payment providers (Stripe, GCash, Maya, bank transfers) are swappable
-adapters behind a payment gateway port (R24).
+Sprint 0 modeled commerce as one `Payment` aggregate with embedded
+`PaymentLedgerEntry` history. Sprint 0.1 separates commerce into distinct
+concepts to support: multiple payment attempts for one order, independent
+refund/settlement/payout lifecycles, and clear auditability.
+
+```mermaid
+flowchart LR
+  RegCharge["RegistrationCharge"] --> Order
+  Order --> Attempt["PaymentAttempt"]
+  Attempt -->|success| Txn["PaymentTransaction"]
+  Txn --> Refund
+  Txn --> Settlement
+  Settlement --> Payout["OrganizerPayout"]
+  Attempt -->|failure| Attempt2["Next PaymentAttempt"]
+```
+
+## Conceptual separation
+
+| Concept | What it is | Mutability |
+|---|---|---|
+| `RegistrationCharge` | A charge line item arising from a Registration | Mutable (while Order open) |
+| `Order` | A commercial obligation for a payer, aggregating charges | Status transitions |
+| `PaymentAttempt` | A single attempt to pay an Order | Status transitions |
+| `PaymentTransaction` | The captured money movement from a successful attempt | **Append-only / immutable** |
+| `Refund` | A reversal of a PaymentTransaction | **Append-only** |
+| `Settlement` | Platform reconciliation with a payment provider for a batch | **Append-only** |
+| `OrganizerPayout` | Platform payout to an organizer | **Append-only** |
+
+### RegistrationCharge
+
+A charge line item arising from a `Registration`. Owned by Commerce but
+references `Registration` by typed ID.
 
 ```typescript
-interface Payment {
-  id: Id<"Payment">;
+interface RegistrationCharge {
+  id: Id<"RegistrationCharge">;
+  tenantId: Id<"Tenant">;
+  registrationId: Id<"Registration">;
+  amount: Money;
+  description: string;
+}
+```
+
+### Order
+
+A commercial obligation aggregating one or more `RegistrationCharge`s for a
+payer. The payer is a `Person`, independent of the competition participant (R18).
+
+```typescript
+interface Order {
+  id: Id<"Order">;
   tenantId: Id<"Tenant">;
   payerPersonId: Id<"Person">;
-  registrationId: Id<"Registration"> | null;
-  amount: Money;
-  status: PaymentStatus;
-  providerRef: string | null;
-  capturedAt: ISODateString | null;
+  chargeIds: ReadonlyArray<Id<"RegistrationCharge">>;
+  totalAmount: Money;
+  status: "open" | "partially_paid" | "paid" | "refunded" | "voided";
 }
+```
 
-type PaymentStatus =
-  | "pending" | "authorized" | "captured"
-  | "failed" | "refunded" | "partially_refunded" | "settled";
+### PaymentAttempt
+
+A single attempt to pay an Order. **Multiple attempts may exist for one
+Order** (e.g. a failed card retry, then a successful GCash payment).
+
+```typescript
+interface PaymentAttempt {
+  id: Id<"PaymentAttempt">;
+  tenantId: Id<"Tenant">;
+  orderId: Id<"Order">;
+  amount: Money;
+  status: "initiated" | "authorized" | "captured" | "failed" | "cancelled";
+  providerRef: string | null;
+  attemptNumber: number;
+}
+```
+
+### PaymentTransaction
+
+The captured/settled money movement from a successful PaymentAttempt.
+**Immutable** — this is the permanent financial record.
+
+```typescript
+interface PaymentTransaction {
+  id: Id<"PaymentTransaction">;
+  tenantId: Id<"Tenant">;
+  attemptId: Id<"PaymentAttempt">;
+  orderId: Id<"Order">;
+  amount: Money;
+  capturedAt: ISODateString;
+}
+```
+
+### Refund
+
+A reversal of a PaymentTransaction. Append-only. May be partial. The original
+transaction is never mutated.
+
+```typescript
+interface Refund {
+  id: Id<"Refund">;
+  tenantId: Id<"Tenant">;
+  transactionId: Id<"PaymentTransaction">;
+  amount: Money;
+  recordedAt: ISODateString;
+}
+```
+
+### Settlement
+
+The platform's reconciliation with a payment provider for a batch of
+transactions. Append-only. Future workflow; the shape is defined now.
+
+```typescript
+interface Settlement {
+  id: Id<"Settlement">;
+  tenantId: Id<"Tenant">;
+  transactionIds: ReadonlyArray<Id<"PaymentTransaction">>;
+  totalAmount: Money;
+  settledAt: ISODateString;
+}
+```
+
+### OrganizerPayout
+
+The platform's payout to an organizer. Append-only. Future workflow.
+
+```typescript
+interface OrganizerPayout {
+  id: Id<"OrganizerPayout">;
+  tenantId: Id<"Tenant">;
+  organizationId: Id<"Organization">;
+  settlementIds: ReadonlyArray<Id<"Settlement">>;
+  amount: Money;
+  paidOutAt: ISODateString;
+}
 ```
 
 ## Money is multi-currency (R13)
@@ -40,75 +155,44 @@ interface Money {
 }
 ```
 
-All money arithmetic and display goes through a Money value object that
-respects currency precision. The platform may price entry fees in PHP today
-and USD/EUR tomorrow without schema change.
+## Append-only financial records (R16)
 
-## Append-only financial ledger (R16)
+`PaymentTransaction`, `Refund`, `Settlement`, and `OrganizerPayout` are
+**append-only**: they are never mutated or deleted. An `Order`'s current
+status is a **projection** of its transactions, refunds, and settlements.
+Financial reconciliation replays the append-only records.
 
-Every charge, refund, settlement, and adjustment produces a
-`PaymentLedgerEntry`. The ledger is **append-only**: entries are never
-mutated or deleted. A refund is a new entry, not a modification of the
-original charge.
+## Payer independence (R18)
 
-```typescript
-interface PaymentLedgerEntry {
-  id: Id<"PaymentLedgerEntry">;
-  paymentId: Id<"Payment">;
-  entryType: "charge" | "refund" | "settlement" | "adjustment";
-  amount: Money;
-  recordedAt: ISODateString;
-}
-```
+The `payerPersonId` on an Order is a Person, independent of the competition
+participant. A guardian may pay for a minor athlete; a sponsor representative
+may pay for a team. This keeps minor/guardian and sponsor payment flows clean.
 
-The current `Payment.status` is a **projection** of the ledger, recomputable
-from it. This mirrors the rewards ledger pattern (R7) and guarantees
-auditability.
+## Commerce ↔ Registration interaction
 
-## Payment lifecycle
+Commerce and Registration communicate via events and/or synchronous service
+ports (see `dependency-rules.md`, ADR-017):
 
-```mermaid
-stateDiagram-v2
-  [*] --> pending
-  pending --> authorized: authorize
-  pending --> failed: fail
-  authorized --> captured: capture
-  captured --> refunded: full refund
-  captured --> partially_refunded: partial refund
-  captured --> settled: settlement
-  partially_refunded --> settled: settlement
-  failed --> [*]
-  refunded --> [*]
-  settled --> [*]
-```
+- **Asynchronous (events):** `RegistrationSubmitted` → Commerce creates a
+  `RegistrationCharge` and `Order`; `PaymentTransactionCaptured` → Registration
+  advances status.
+- **Synchronous (query port):** Registration may query Commerce for the
+  payment status of an Order when it needs an immediate answer.
 
-Each transition appends a `PaymentLedgerEntry` and publishes a domain event
-(`PaymentCaptured`, `PaymentRefunded`, `PaymentSettled`). Other contexts
-(Registration, Rewards reconciliation) react to events, never to direct calls.
-
-## Refunds and settlements
-
-- **Refund** — returns money to the payer. Creates a `refund` ledger entry.
-  May be partial. Does not delete the original charge.
-- **Settlement** — the platform's reconciliation with the payment provider /
-  organizer payout. Creates a `settlement` ledger entry. Settlement is a
-  future workflow; the ledger shape supports it now.
-
-## Participant vs payer (recap)
-
-The `payerPersonId` on a Payment matches the `payerPersonId` on the linked
-Registration (R18). A payment is owed by a Person, not by an Athlete or Team.
-This keeps minor/guardian and sponsor payment flows clean.
+The choice depends on consistency requirements: synchronous when the caller
+needs an immediate consistent answer, asynchronous when eventual consistency
+is acceptable.
 
 ## Port: PaymentGateway
 
-A future `PaymentGatewayPort` (in `src/ports/`) will abstract provider
-interactions (authorize, capture, refund, webhook handling). Webhook signature
-verification happens in the adapter, not in the domain. Not built this sprint.
+A future `PaymentGatewayPort` (in `src/ports/`, application-owned) will
+abstract provider interactions (authorize, capture, refund, webhook handling).
+Webhook signature verification happens in the adapter, not in the domain. Not
+built this sprint.
 
 ## What is NOT in Commerce
 
 - Entry fee pricing rules (future, may live in Competition or a Pricing
   context, referenced by Registration).
 - Reward marketplace purchases (future Rewards context consumer).
-- Payouts to organizers (future settlement workflow).
+- Payout calculation rules (future settlement workflow).

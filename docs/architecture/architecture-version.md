@@ -4,11 +4,46 @@
 
 ## Current version
 
-**SportsOS Architecture v0.1.0 — Sprint 0 (Architecture Only)**
+**SportsOS Architecture v0.2.0 — Sprint 0.1 (Architecture Correction)**
 
 - Date: 2026-09-08
-- Sprint: 0 (Architecture)
+- Sprint: 0.1 (Architecture Correction)
 - Status: Approved for Sprint 1 planning
+- Supersedes: v0.1.0 (Sprint 0)
+
+## What changed in v0.2.0 (Sprint 0.1 corrections)
+
+This is a **MINOR** version bump (additive corrections to boundaries and
+classifications, no breaking change to the layer model). 11 corrections:
+
+1. **Ownership & tenancy** — removed "every entity is tenant-owned"; added 6
+   ownership classifications; Person/SportsId are platform-global.
+2. **Person vs Athlete** — AthleteProfile is optional (renamed from Athlete);
+   a Person does not automatically become an athlete.
+3. **Retention & deletion** — replaced blanket "soft delete only" with a
+   layered retention model (account closure, deactivation, archival,
+   anonymization, historical preservation, audit retention).
+4. **Competition aggregates** — replaced unbounded EventContainer+CompetitionEvent
+   with independent aggregate lifecycles (Event → Competition → Division →
+   Stage → Contest).
+5. **Commerce** — replaced single Payment+ledger with separated concepts
+   (RegistrationCharge, Order, PaymentAttempt, PaymentTransaction, Refund,
+   Settlement, OrganizerPayout).
+6. **Rewards** — added idempotent issuance, source identity, earning rule
+   identity/version, duplicate-award prevention, reversal entries.
+7. **QR credential lifecycle** — added full lifecycle states (issued, active,
+   expired, revoked, replaced, compromised); SportsId and QrCredential are
+   separate.
+8. **Authorization** — replaced flat PersonRole with memberships/assignments
+   (OrganizationMembership, OrganizationRoleAssignment, TeamMembership,
+   EventAssignment, PlatformRoleAssignment, GuardianRelationship).
+9. **Cross-context interaction** — removed "EventBus only" rule; added
+   synchronous query/service ports and published application contracts as
+   valid interaction mechanisms.
+10. **Layer/port ownership** — Domain no longer depends on ports; Application
+    owns ports; native ports are application-owned, outside Domain.
+11. **Architecture enforcement** — documented machine-enforced boundaries
+    planned for Sprint 1 (ADR-018).
 
 ## Versioning scheme
 
@@ -16,8 +51,8 @@ Semantic versioning, applied to the **architecture** (not the product):
 
 - **MAJOR** — a breaking change to the layer model, dependency rules, or a
   bounded context boundary (requires new/superseding ADRs).
-- **MINOR** — additive change (new context, new port, new aggregate) that does
-  not break existing boundaries.
+- **MINOR** — additive change (new context, new port, new aggregate, corrected
+  classifications) that does not break existing boundaries.
 - **PATCH** — clarification, typo, or non-structural correction.
 
 ## Change process
@@ -30,49 +65,55 @@ Semantic versioning, applied to the **architecture** (not the product):
 
 ## ADR index
 
-| ADR | Title |
-|---|---|
-| [000](../adr/000-template.md) | ADR Template |
-| [001](../adr/001-modular-domain-architecture.md) | Modular Domain Architecture |
-| [002](../adr/002-person-and-sports-id.md) | Person and Sports ID |
-| [003](../adr/003-multi-sport-athlete-model.md) | Multi-Sport Athlete Model |
-| [004](../adr/004-organization-tenancy.md) | Organization and Tenancy |
-| [005](../adr/005-competition-abstraction.md) | Competition Abstraction |
-| [006](../adr/006-rewards-ledger.md) | Rewards Ledger |
-| [007](../adr/007-qr-credential-security.md) | QR Credential Security |
-| [008](../adr/008-commerce-boundary.md) | Commerce Boundary |
-| [009](../adr/009-web-first-mobile-distribution.md) | Web-First, Mobile Distribution |
+| ADR | Title | Sprint 0.1 status |
+|---|---|---|
+| [000](../adr/000-template.md) | ADR Template | — |
+| [001](../adr/001-modular-domain-architecture.md) | Modular Domain Architecture | Clarified [C] |
+| [002](../adr/002-person-and-sports-id.md) | Person and Sports ID | Clarified [C] |
+| [003](../adr/003-multi-sport-athlete-model.md) | Multi-Sport Athlete Model | Clarified [C] |
+| [004](../adr/004-organization-tenancy.md) | Organization and Tenancy | Clarified [C] |
+| [005](../adr/005-competition-abstraction.md) | Competition Abstraction | Clarified [C] |
+| [006](../adr/006-rewards-ledger.md) | Rewards Ledger | Clarified [C] |
+| [007](../adr/007-qr-credential-security.md) | QR Credential Security | Clarified [C] |
+| [008](../adr/008-commerce-boundary.md) | Commerce Boundary | Clarified [C] |
+| [009](../adr/009-web-first-mobile-distribution.md) | Web-First, Mobile Distribution | — |
+| [010](../adr/010-ownership-classification.md) | Ownership Classification | **New** [C] |
+| [011](../adr/011-retention-and-privacy.md) | Retention and Privacy Architecture | **New** [C] |
+| [012](../adr/012-membership-authorization.md) | Membership-Based Authorization | **New** [C] |
+| [013](../adr/013-competition-aggregate-lifecycles.md) | Competition Aggregate Lifecycles | **New** [C] |
+| [014](../adr/014-commerce-concept-separation.md) | Commerce Concept Separation | **New** [C] |
+| [015](../adr/015-rewards-idempotency.md) | Rewards Idempotency and Reversal | **New** [C] |
+| [016](../adr/016-layer-port-ownership.md) | Layer and Port Ownership | **New** [C] |
+| [017](../adr/017-cross-context-interaction.md) | Cross-Context Interaction | **New** [C] |
+| [018](../adr/018-architecture-enforcement.md) | Architecture Enforcement | **New** [C] |
 
-## Sprint 0 deliverable map
+## Sprint 0.1 deliverable map
+
+All Sprint 0 deliverables retained. Updated documents are marked [C]:
 
 | Deliverable | Location |
 |---|---|
-| Architecture overview | `architecture-overview.md` |
-| Architecture rules | `architecture-rules.md` |
-| Bounded contexts | `bounded-contexts.md` |
-| Dependency rules | `dependency-rules.md` |
-| Identity model | `identity-model.md` |
-| Person-role model | `person-role-model.md` |
-| Organization model | `organization-model.md` |
+| Architecture overview [C] | `architecture-overview.md` |
+| Architecture rules [C] | `architecture-rules.md` |
+| Bounded contexts [C] | `bounded-contexts.md` |
+| Dependency rules [C] | `dependency-rules.md` |
+| Identity model [C] | `identity-model.md` |
+| Person-role model [C] | `person-role-model.md` |
+| Organization model [C] | `organization-model.md` |
 | Sports model | `sports-model.md` |
-| Competition model | `competition-model.md` |
+| Competition model [C] | `competition-model.md` |
 | Registration model | `registration-model.md` |
-| Commerce model | `commerce-model.md` |
+| Commerce model [C] | `commerce-model.md` |
 | Results & achievements | `results-achievements-model.md` |
-| Rewards model | `rewards-model.md` |
-| QR credentials model | `qr-credentials-model.md` |
-| Tenancy | `tenancy.md` |
-| Authorization | `authorization.md` |
+| Rewards model [C] | `rewards-model.md` |
+| QR credentials model [C] | `qr-credentials-model.md` |
+| Tenancy [C] | `tenancy.md` |
+| Authorization [C] | `authorization.md` |
 | Geography & localization | `geography-localization.md` |
-| Audit & integrity | `audit-integrity.md` |
+| Audit & integrity [C] | `audit-integrity.md` |
 | Client platforms | `client-platforms.md` |
 | Mobile strategy | `mobile-strategy.md` |
 | Offline resilience | `offline-resilience.md` |
-| Version | `architecture-version.md` |
-| ADRs | `docs/adr/` |
-| Source boundaries | `src/` |
-
-## What changed the architecture version
-
-This is the initial version. All future changes must bump this version and
-record the rationale in an ADR.
+| Version [C] | `architecture-version.md` |
+| ADRs (10 updated + 9 new) [C] | `docs/adr/` |
+| Source boundaries [C] | `src/` |

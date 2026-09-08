@@ -1,3 +1,5 @@
+import type { Id, ISODateString } from "@shared/kernel";
+
 /**
  * Aggregate root marker. Concrete aggregates live under their bounded context.
  */
@@ -9,9 +11,13 @@ export interface AggregateRoot<B extends string> {
 export interface ValueObject {}
 
 /**
- * Domain event marker. Events are published by aggregates, routed through an
- * application-layer port (EventBus), and consumed by other contexts without
- * direct coupling.
+ * Domain event marker. Events are produced by aggregates and represent
+ * something that happened in the domain. The APPLICATION layer routes them
+ * (via EventBus or other mechanisms) to interested contexts. The domain
+ * itself does not depend on any port to publish events — it produces them,
+ * and the application layer handles delivery.
+ *
+ * See ADR-017 for cross-context interaction rules.
  */
 export interface DomainEvent {
   readonly eventId: string;
@@ -19,5 +25,3 @@ export interface DomainEvent {
   readonly aggregateId: string;
   readonly aggregateType: string;
 }
-
-import type { Id, ISODateString } from "@shared/kernel";

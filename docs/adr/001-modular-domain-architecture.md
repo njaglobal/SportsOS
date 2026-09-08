@@ -34,13 +34,15 @@ boundaries** and **ports/adapters**:
    value objects, and domain events.
 2. Layer the code as: **Presentation → Application → Domain**, with a
    **shared kernel** of generic primitives.
-3. Define **ports** (interfaces) in the application/domain layer for every
-   infrastructure or native capability.
+3. Define **ports** (interfaces) in the **application layer** [C] for every
+   infrastructure or native capability. The domain layer must NOT depend on
+   ports (see ADR-016).
 4. Implement ports with **adapters** in an isolated package — the only place
    infrastructure SDKs are imported.
-5. Cross-context communication is via **domain events** on an `EventBus` and
-   **shared typed identifiers** — never direct repository calls across
-  contexts.
+5. Cross-context communication uses **domain/integration events**, **synchronous
+   query/service ports**, **published application contracts**, and **shared
+   typed identifiers** [C] — never direct access to another context's domain
+   internals or repositories. See ADR-017.
 6. Dependency direction is strictly inward/downward; cycles are forbidden.
 
 See `bounded-contexts.md` and `dependency-rules.md`.
@@ -57,7 +59,8 @@ See `bounded-contexts.md` and `dependency-rules.md`.
 
 **Negative:**
 - More upfront structure and indirection (ports + adapters) than a flat app.
-- Cross-context features require event coordination, not direct calls.
+- Cross-context features require event coordination or synchronous service
+  ports, not direct access to another context's domain internals [C].
 - Enforcement discipline is required (lint + review).
 
 **Neutral:**
@@ -80,5 +83,6 @@ See `bounded-contexts.md` and `dependency-rules.md`.
 
 - TypeScript path aliases (`@domain`, `@app`, `@ports`, `@adapters`, `@shared`).
 - ESLint `import/no-cycle`.
-- Code review rejects `@domain`/`@app` imports of `@adapters` or platform SDKs.
-- Future: `eslint-plugin-boundaries` rules (backlog).
+- Code review rejects `@domain` imports of `@ports` or `@adapters` [C], and
+  `@app` imports of `@adapters` or platform SDKs.
+- Future: `dependency-cruiser` / `eslint-plugin-boundaries` rules (ADR-018).

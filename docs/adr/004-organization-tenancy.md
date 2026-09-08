@@ -18,9 +18,12 @@ structures (R12) and must scale to multi-country expansion.
 
 ## Decision
 
-1. **Tenant** is the isolation boundary. Every tenant-scoped entity carries
-   `tenantId`. Repositories filter by `tenantId` by default. Cross-tenant
-   access is never implicit (R14).
+1. **Tenant** is the isolation boundary for **organization/tenant-owned and
+   event-scoped entities** [C]. Not every entity is tenant-owned — see the
+   ownership classification in ADR-010. Platform-global (Person, SportsId),
+   reference data (Sport, Discipline), and person-owned (AthleteProfile)
+   entities do NOT carry `tenantId`. Repositories for tenant-owned entities
+   filter by `tenantId` by default. Cross-tenant access is never implicit (R14).
 2. **Organization** is a structured body discriminated by `kind` (club,
    school, association, lgu, governing_body, sponsor, venue_operator).
    Organizations can form hierarchies (`parentId`) within a tenant.
@@ -59,7 +62,9 @@ See `organization-model.md`, `tenancy.md`, `geography-localization.md`.
 
 ## Compliance
 
-- All context entities carry `tenantId`.
+- All **tenant-owned and event-scoped** entities carry `tenantId` [C].
+  Platform-global and person-owned entities do not.
 - `Team.organizationId` and `Team.sportId` are required.
 - `Organization.parentId` is optional (hierarchy).
 - Geography uses `TypedPlace` (future field), never PH-specific columns.
+- Ownership classifications documented in `tenancy.md`, ADR-010 [C].

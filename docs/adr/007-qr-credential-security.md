@@ -32,10 +32,15 @@ each other (R10).
    - Identity verification (self / document / verified) —
      `IdentityVerification.level`.
    None implies another; they compose for high-trust flows.
-4. **Rotation and revocation** are first-class: `rotatedAt`, `revoked`. A
-   revoked token resolves to "revoked" server-side and grants nothing.
-5. On account soft-delete, active QR credentials are revoked; identity
-   archive and historical records persist (R20).
+4. **Credential lifecycle** [C]: credentials have explicit states (issued,
+   active, expired, revoked, replaced, compromised). `rotatedAt`, `revokedAt`,
+   `replacedById` record transitions. A revoked/expired/replaced token
+   resolves to its terminal state server-side and grants nothing.
+5. **SportsId and QrCredential are separate** [C]: rotating or revoking a
+   credential never changes the Person's SportsId.
+6. On account closure, active QR credentials are revoked; the SportsId
+   remains permanent; historical records persist. After retention, personal
+   data may be anonymized [C]. See ADR-011.
 
 See `qr-credentials-model.md`, `identity-model.md`.
 
@@ -67,5 +72,7 @@ See `qr-credentials-model.md`, `identity-model.md`.
 
 - `QrCredential.payloadToken` is opaque; no profile fields on the credential.
 - `QrCredentialKind` discriminates permanent vs event.
+- `QrCredentialStatus` tracks full lifecycle [C].
 - `IdentityVerificationLevel` is checked independently of QR/biometrics for
   high-trust permissions.
+- SportsId is never changed by credential rotation/revocation [C].

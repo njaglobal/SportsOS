@@ -1,10 +1,11 @@
 # Organization Model
 
-> Team vs Organization, and the tenancy boundary. See ADR-004, `tenancy.md`.
+> Team vs Organization, and the tenancy boundary. See ADR-004, ADR-010,
+> `tenancy.md`.
 
 ## Organization
 
-An `Organization` is any structured body that owns or governs sport activity.
+An `Organization` is any structured body that owns or governns sport activity.
 It is discriminated by `kind`:
 
 | `kind` | Examples |
@@ -20,6 +21,8 @@ It is discriminated by `kind`:
 Organizations can form hierarchies (`parentId`): an association may have
 member clubs; a governing body may have member associations. The hierarchy is
 within a tenant.
+
+**Ownership: organization/tenant-owned** [C]. See `tenancy.md`.
 
 ```typescript
 interface Organization {
@@ -43,6 +46,7 @@ Organization but is not the Organization.
 | Competes? | No (it fields teams) | Yes |
 | Sport-bound? | No | Yes (`sportId`) |
 | Examples | "Quezon City Basketball Club" | "QCBC - U16 Team A" |
+| Ownership [C] | Organization/tenant-owned | Organization/tenant-owned |
 
 ```typescript
 interface Team {
@@ -65,30 +69,39 @@ erDiagram
   Team }o--|| Sport : "bound to"
 ```
 
+## [C] Organization membership (corrected)
+
+Persons hold roles within organizations through separate aggregates (see
+`person-role-model.md`, ADR-012):
+
+- `OrganizationMembership` — a Person belongs to an Organization.
+- `OrganizationRoleAssignment` — a Person holds a role (organizer, official,
+  coach, team_manager, staff, sponsor_representative) within that membership.
+
+This replaces the Sprint 0 model where membership was expressed through a
+single `PersonRole` entry. The separation allows independent lifecycles and
+more precise permission derivation.
+
 ## Tenancy (summary)
 
-A **Tenant** is the isolation boundary. Every tenant-scoped entity carries
-`tenantId`. Multi-tenancy is explicit (R14). See `tenancy.md` for the full
-model, including the relationship between Tenant and Organization and
-cross-tenant access rules.
-
-## Organization membership
-
-Persons hold roles **within** organizations (e.g. `coach` scoped to
-Organization A). Organization membership is expressed through scoped
-`PersonRole` entries, not a separate membership table in this sprint. A future
-membership aggregate may formalize this.
+A **Tenant** is the isolation boundary for organization/tenant-owned and
+event-scoped data. Organizations and Teams carry `tenantId`. Platform-global
+entities (Person, SportsId, Sport, Discipline) and person-owned entities
+(AthleteProfile) do NOT [C]. See `tenancy.md` for the full ownership
+classification.
 
 ## Organizers
 
-An "organizer" is a **role** (`RoleKind: "organizer"`) scoped to an
-Organization. The organization that owns an `EventContainer` is recorded as
-`organizerOrganizationId`. This separates the legal body (Organization) from
-the people acting on its behalf (Persons with the organizer role).
+An "organizer" is an `OrganizationRoleKind` assigned via
+`OrganizationRoleAssignment` within an `OrganizationMembership`. The
+organization that owns an Event is recorded as `organizerOrganizationId` on
+the `CompetitionEvent`. This separates the legal body (Organization) from the
+people acting on its behalf.
 
 ## Sponsors and venue operators
 
 Sponsors and venue operators are modeled as Organizations of the corresponding
 `kind`. This avoids inventing parallel hierarchies and lets the tenancy and
 membership model apply uniformly. Sponsorship deals and venue bookings are
-future aggregates that reference Organizations.
+future aggregates that reference Organizations. A `sponsor_representative`
+role kind exists for persons acting on behalf of a sponsor organization.

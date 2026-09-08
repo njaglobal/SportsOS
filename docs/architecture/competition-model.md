@@ -1,42 +1,61 @@
 # Competition Model
 
-> Event vs Tournament vs League, participant abstraction, team vs individual,
-> and format extensibility. See ADR-005.
+> Competition aggregate boundaries, participant abstraction, team vs individual,
+> and format extensibility. See ADR-005, ADR-013.
 
-## Event vs Tournament vs League
+## [C] Re-evaluated aggregate boundaries
 
-- **EventContainer** — a container that holds one or more competition events.
-  Kinds: `tournament`, `league`, `standalone`.
-- **CompetitionEvent** — a single unit of competition within a container,
-  with a format and a participant kind.
+Sprint 0 modeled `EventContainer` containing `CompetitionEvent` children as a
+single aggregate. Sprint 0.1 corrects this: a national-scale event (e.g. Palarong
+Pambansa) contains many sports, divisions, competitions, matches/heats/bouts/
+races, and thousands of participants. An aggregate containing all of these
+would be unbounded, causing performance and concurrency problems.
+
+Each level is an **independent aggregate** with its own lifecycle, referencing
+its parent by typed ID. This allows concurrent operations on different
+competitions/divisions/stages without lock contention.
 
 ```mermaid
-erDiagram
-  Organization ||--o{ EventContainer : "organizes"
-  EventContainer ||--o{ CompetitionEvent : "contains"
-  CompetitionEvent }o--|| Sport : "sport"
-  CompetitionEvent }o--o| Discipline : "discipline"
+flowchart TB
+  Event["CompetitionEvent<br/>(tournament/league/standalone)"]
+  Competition["Competition<br/>(sport+discipline within event)"]
+  Division["Division / Category<br/>(age/weight/skill)"]
+  Stage["Stage<br/>(preliminary, semifinal, final...)"]
+  Contest["Contest (future)<br/>(Match/Heat/Bout/Race)"]
+
+  Event -- "eventId ref" --> Competition
+  Competition -- "competitionId ref" --> Division
+  Division -- "divisionId ref" --> Stage
+  Stage -- "stageId ref" --> Contest
 ```
 
-| Container kind | Example |
-|---|---|
-| `tournament` | "Quezon City Open 2026" — contains singles, doubles, team events |
-| `league` | "Metro Basketball League Season 4" — contains scheduled matches |
-| `standalone` | a single one-off event |
+## Hierarchy
+
+### CompetitionEvent (aggregate root)
+
+The top-level organized occurrence — a tournament, league, or standalone event.
+Organized by an Organization. Tenant-owned (event-scoped).
 
 ```typescript
-interface EventContainer {
-  id: Id<"EventContainer">;
+interface CompetitionEvent {
+  id: Id<"Event">;
   tenantId: Id<"Tenant">;
   kind: "tournament" | "league" | "standalone";
   name: string;
   organizerOrganizationId: Id<"Organization">;
 }
+```
 
-interface CompetitionEvent {
-  id: Id<"Event">;
+### Competition (independent aggregate, references Event by ID)
+
+A specific sport/discipline competition within an Event. Carries the format
+and participant kind. Tenant-owned (event-scoped).
+
+```typescript
+interface Competition {
+  id: Id<"Competition">;
   tenantId: Id<"Tenant">;
-  containerId: Id<"EventContainer">;
+  eventId: Id<"Event">;
   sportId: Id<"Sport">;
   disciplineId: Id<"Discipline"> | null;
   format: EventFormat;
@@ -45,16 +64,62 @@ interface CompetitionEvent {
 }
 ```
 
+### Division / Category (independent aggregate)
+
+An age group, weight class, skill level, or other partitioning within a
+Competition. Tenant-owned (event-scoped).
+
+```typescript
+interface Division {
+  id: Id<"Division">;
+  tenantId: Id<"Tenant">;
+  competitionId: Id<"Competition">;
+  name: string;
+  label: string;
+}
+```
+
+### Stage (independent aggregate)
+
+A phase within a Division's competition structure (preliminary, semifinal,
+final, etc.). Tenant-owned (event-scoped).
+
+```typescript
+interface Stage {
+  id: Id<"Stage">;
+  tenantId: Id<"Tenant">;
+  divisionId: Id<"Division">;
+  kind: StageKind;
+  name: string;
+  sequence: number;
+}
+```
+
+### Contest (future aggregate, seam defined)
+
+A single match/heat/bout/race within a Stage. Its concrete shape is
+discriminated by `ContestKind`. Forward-looking — not implemented this sprint.
+No competition engines are built (per sprint brief).
+
+```typescript
+interface Contest {
+  id: Id<"Contest">;
+  tenantId: Id<"Tenant">;
+  stageId: Id<"Stage">;
+  contestKind: ContestKind;
+}
+```
+
 ## Participant abstraction
 
-A participant in a competition is either an **individual** (an Athlete) or a
-**team** (a Team). The `participantKind` discriminates which. Downstream
+A participant in a competition is either an **individual** (an AthleteProfile)
+or a **team** (a Team). The `participantKind` discriminates which. Downstream
 contexts (Registration, Results) use this discriminator to know what
 `participantId` refers to.
 
 ```typescript
 type ParticipantKind = "individual" | "team";
-// participantId: Id<"Athlete"> | Id<"Team"> — discriminated by participantKind
+// participantId: Id<"AthleteProfile"> | Id<"Team"> — discriminated by participantKind
 ```
 
 ## Team vs individual competition
@@ -62,14 +127,11 @@ type ParticipantKind = "individual" | "team";
 The same competition framework handles both. The `participantKind` field is
 the switch:
 
-- **individual** — `participantId` is an `Athlete`. Results record per-athlete
-  outcomes (time, distance, score, placement, judged total).
+- **individual** — `participantId` is an `AthleteProfile`. Results record
+  per-athlete outcomes (time, distance, score, placement, judged total).
 - **team** — `participantId` is a `Team`. Results record per-team outcomes.
-  Team composition (which athletes are on the team for this event) is a future
-  aggregate owned by the Competition context.
-
-This lets a tournament contain both individual and team events under one
-container without special casing.
+  Team composition (which athletes are on the team for this event) is modeled
+  via `TeamMembership` in the authorization context.
 
 ## Competition format extensibility
 
@@ -86,26 +148,26 @@ container without special casing.
 | `judged` | judged |
 | `group_then_knockout` | score / head_to_head |
 
-Adding a new format (e.g. `ladder`, `league_playoffs`) is a non-breaking
-addition. The bracket/draw structure for each format is a future aggregate
-within the Competition context; it is not modeled this sprint. The important
-architectural property is that **the format is data, not a code branch in
-another context** — Results and Registration treat format opaquely.
+Adding a new format is a non-breaking addition. **The format is data, not a
+code branch in another context** — Results and Registration treat format
+opaquely. Bracket/draw structure per format is a future concern within the
+Competition context's Stage/Contest aggregates.
 
 ## Multi-participant events
 
 Some events involve many simultaneous participants (a road race, a swimming
 heat). These are handled by `placement` / `timed` measures where a single
-event yields many results (one per participant). The Results context owns
-batch result recording; see `results-achievements-model.md`.
+competition yields many results (one per participant). The Results context
+owns batch result recording; see `results-achievements-model.md`.
 
 ## Scoring and results (boundary)
 
 Scoring and results belong to the **Results & Achievements** context, not
-Competition. Competition owns the **structure** (containers, events, draws);
-Results owns the **outcomes**. Competition publishes `EventFinalized` when an
-event's structure is closed; Results records the outcomes. This separation
-keeps results immutable and auditable independently of bracket mutations.
+Competition. Competition owns the **structure** (events, competitions,
+divisions, stages, contests); Results owns the **outcomes**. Competition
+publishes/integrates with Results when a stage or contest is finalized. This
+separation keeps results immutable and auditable independently of structure
+mutations. See `results-achievements-model.md`.
 
 ## Check-in (future)
 

@@ -5,8 +5,8 @@ import type { Id } from "@shared/kernel";
  * clubs, schools, associations, LGUs, governing bodies, sponsors (as
  * commercial orgs), venue operators. Discriminated by `kind`.
  *
- * Multi-tenancy is organization-scoped (see docs/architecture/tenancy.md).
- * A Tenant is the isolation boundary; an Organization is a member of a Tenant.
+ * Ownership: organization/tenant-owned. An Organization belongs to a Tenant.
+ * See docs/architecture/organization-model.md, tenancy.md, ADR-004, ADR-010.
  */
 export type OrganizationKind =
   | "club"
@@ -27,8 +27,10 @@ export interface Organization {
 
 /**
  * Team — a competing unit within competitions. A Team belongs to an
- * Organization but is NOT the organization itself (see ADR-005 and
- * docs/architecture/organization-model.md).
+ * Organization but is NOT the organization itself.
+ *
+ * Ownership: organization/tenant-owned.
+ * See docs/architecture/organization-model.md, ADR-005.
  */
 export interface Team {
   readonly id: Id<"Team">;

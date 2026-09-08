@@ -1,18 +1,23 @@
 import type { Id, ISODateString } from "@shared/kernel";
 
 /**
- * Results & Achievements boundary (see docs/architecture/results-achievements-model.md).
+ * Results & Achievements boundary (see
+ * docs/architecture/results-achievements-model.md).
  *
  * Historical competition records are IMMUTABLE and append-only (invariant 5).
  * Achievements/championships are separate from spendable rewards (invariant 6).
+ *
+ * Ownership: historical/audit. Records are never deleted, even if the Person's
+ * account is closed or the Person is anonymized. Results reference
+ * AthleteProfile (not a tenant/organization).
  */
 export type ResultStatus = "provisional" | "confirmed" | "amended" | "voided";
 
 export interface CompetitionResult {
   readonly id: Id<"Result">;
   readonly tenantId: Id<"Tenant">;
-  readonly eventId: Id<"Event">;
-  readonly participantId: Id<"Athlete"> | Id<"Team">;
+  readonly competitionId: Id<"Competition">;
+  readonly participantId: Id<"AthleteProfile"> | Id<"Team">;
   readonly participantKind: "individual" | "team";
   readonly status: ResultStatus;
   readonly recordedAt: ISODateString;
@@ -36,8 +41,7 @@ export type AchievementKind =
 
 export interface Achievement {
   readonly id: Id<"Achievement">;
-  readonly tenantId: Id<"Tenant">;
-  readonly athleteId: Id<"Athlete">;
+  readonly athleteProfileId: Id<"AthleteProfile">;
   readonly sportId: Id<"Sport">;
   readonly kind: AchievementKind;
   readonly sourceResultId: Id<"Result">;
