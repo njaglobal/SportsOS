@@ -1,9 +1,10 @@
 import { SystemClock } from "@adapters/clock/system-clock";
 import { UuidIdGenerator } from "@adapters/id/uuid-id-generator";
 import { RandomSportsIdGenerator } from "@adapters/id/sports-id-generator";
-import { InMemoryPersonRepository } from "@adapters/persistence/in-memory-person-repository";
-import { InMemoryAthleteProfileRepository } from "@adapters/persistence/in-memory-athlete-profile-repository";
-import { InMemorySportDirectory } from "@adapters/sports/in-memory-sport-directory";
+import { createSql, readPgConfigFromEnv } from "@adapters/persistence/pg/connection";
+import { PgPersonRepository } from "@adapters/persistence/pg/pg-person-repository";
+import { PgAthleteProfileRepository } from "@adapters/persistence/pg/pg-athlete-profile-repository";
+import { PgSportDirectory } from "@adapters/persistence/pg/pg-sport-directory";
 import { NoopEventPublisher } from "@adapters/events/noop-event-publisher";
 import type { DomainEvent, IntegrationEvent } from "@app/contracts/events";
 import { CreatePerson } from "@app/use-cases/create-person";
@@ -15,22 +16,26 @@ import type { AppContainer } from "@composition/container";
  * Production composition root. Wires real capability adapters to the
  * application contracts and constructs the available use cases.
  *
+ * Person, Sports ID, athlete profile, participation, and sport lookups are
+ * backed by PostgreSQL. The database connection is REQUIRED: composition reads
+ * the connection string from the environment and fails loudly when it is
+ * missing — there is no silent fallback to in-memory storage in production.
+ *
  * Event delivery uses a no-op publisher until a real broker adapter exists.
- * Person and athlete storage use in-memory repositories, and the sport lookup
- * uses an in-memory directory: these are TEMPORARY and NOT durable. They must be
- * replaced by persistent adapters (and the SportDirectory backed by the real
- * Sports Catalog) before this container backs anything real. No database,
- * authentication, or UI is wired here.
+ * Database durability and event publication are NOT yet atomic (no transactional
+ * outbox): events are published only after persistence succeeds, so no
+ * exactly-once delivery is claimed. No authentication or UI is wired here.
  */
 export function createProductionContainer(): AppContainer {
   const clock = new SystemClock();
   const idGenerator = new UuidIdGenerator();
   const sportsIdGenerator = new RandomSportsIdGenerator();
-  // TEMPORARY: swap for durable adapters before real use.
-  const personRepository = new InMemoryPersonRepository();
-  const athleteProfileRepository = new InMemoryAthleteProfileRepository();
-  // TEMPORARY: stands in for the future Sports Catalog query port; seeds nothing.
-  const sportDirectory = new InMemorySportDirectory();
+
+  const sql = createSql(readPgConfigFromEnv());
+  const personRepository = new PgPersonRepository(sql);
+  const athleteProfileRepository = new PgAthleteProfileRepository(sql);
+  const sportDirectory = new PgSportDirectory(sql);
+
   const domainEvents = new NoopEventPublisher<DomainEvent>();
   const integrationEvents = new NoopEventPublisher<IntegrationEvent>();
 

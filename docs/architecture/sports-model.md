@@ -2,6 +2,11 @@
 
 > Sport vs Discipline vs Competition Event, and the multi-sport athlete.
 > See ADR-003, ADR-005.
+>
+> **[S4]** A minimal `sports` reference table is now persisted (platform
+> reference data, not tenant-owned) with a small deterministic seed, and
+> `AthleteSportParticipation` history is durably stored with one active
+> participation per athlete/sport plus re-entry. See `../persistence-model.md`.
 
 ## Sport vs Discipline
 

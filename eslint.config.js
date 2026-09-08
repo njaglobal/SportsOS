@@ -19,6 +19,7 @@ export default [
         document: "readonly",
         Blob: "readonly",
         crypto: "readonly",
+        process: "readonly",
       },
     },
     plugins: {

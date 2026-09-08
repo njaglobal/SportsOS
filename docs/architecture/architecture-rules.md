@@ -6,6 +6,13 @@
 >
 > **Sprint 0.1 corrections** are marked with [C]. See ADRs 010–017 for the
 > correction rationale.
+>
+> **[S4]** Persistence rules for the durable slice (PostgreSQL adapters, native
+> constraints as the final invariant guard, aggregate versioning foundation,
+> migration discipline, and the deferred-tenant-RLS decision) live in
+> `../persistence-model.md`, `operations/database.md`, and ADR-020/021/022. The
+> layer and dependency rules below are unchanged: the database driver is an
+> adapter detail behind the existing repository contracts.
 
 ## R1. One Person may hold many platform roles.
 

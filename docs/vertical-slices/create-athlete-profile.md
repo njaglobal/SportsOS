@@ -45,8 +45,9 @@ identity data (no name, no date of birth, no Sports ID).
     confirm the Person exists (no cross-context domain import).
   - `use-cases/create-athlete-profile.ts` — `CreateAthleteProfile implements
     UseCase`.
-- **Adapters** (`src/adapters/`): `InMemoryAthleteProfileRepository`
-  (temporary, in-memory).
+- **Adapters** (`src/adapters/`): `InMemoryAthleteProfileRepository` (unit
+  tests) and [S4] `PgAthleteProfileRepository` (PostgreSQL, the production
+  store).
 - **Composition** (`src/composition/`): production and test wiring.
 
 ## Use-case flow
@@ -71,6 +72,11 @@ never reach the domain; the repository translates them into typed persistence
 outcomes. The repository is the last line of defence for both unique
 `AthleteProfileId` and one-profile-per-Person.
 
+[S4] In production this is enforced by database constraints: the
+`athlete_profiles` primary key maps to `duplicate_athlete_profile_id` and its
+`UNIQUE(person_id)` maps to `person_already_has_profile`, so one-profile-per-
+Person holds even under concurrent requests.
+
 ## Events and delivery
 
 The domain returns the event; it never calls a publisher. A failed create
@@ -80,8 +86,9 @@ built in this slice.
 
 ## Out of scope
 
-Guardian/privacy workflows, the Sports Passport read model, any database, and
-sport participation (see `add-athlete-sport.md`).
+Guardian/privacy workflows, the Sports Passport read model, and sport
+participation (see `add-athlete-sport.md`). [S4] The profile is now durably
+persisted in PostgreSQL.
 
 ## Tests
 

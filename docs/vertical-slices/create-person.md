@@ -38,7 +38,8 @@ replaced through normal mutation.
     (`duplicate_person_id` | `duplicate_sports_id` | `unavailable`).
   - `use-cases/create-person.ts` — `CreatePerson implements UseCase`.
 - **Adapters** (`src/adapters/`): `RandomSportsIdGenerator` (production),
-  `FakeSportsIdGenerator` (deterministic), `InMemoryPersonRepository`.
+  `FakeSportsIdGenerator` (deterministic), `InMemoryPersonRepository`, and
+  [S4] `PgPersonRepository` (PostgreSQL, the production store).
 - **Composition** (`src/composition/`): production and test wiring.
 
 ## Use-case flow
@@ -63,6 +64,13 @@ repository translates them into typed persistence outcomes. The repository is
 the last line of defence for Sports ID uniqueness, returning
 `duplicate_sports_id`.
 
+[S4] In production the Person and its Sports ID are written in **one PostgreSQL
+transaction** (`PgPersonRepository.create`), so neither can exist without the
+other. Database constraints are the final uniqueness guard behind the use case's
+retry: the `sports_ids` primary key and its `UNIQUE(person_id)` map to
+`duplicate_sports_id`, and the `persons` primary key maps to
+`duplicate_person_id`. No SQLSTATE or driver detail escapes the adapter.
+
 ## Events and delivery
 
 The domain returns events; it never calls a publisher. A failed create publishes
@@ -77,3 +85,6 @@ implemented in this slice.
   and uniqueness.
 - `tests/identity/create-person.test.ts` — the full use-case flow, including the
   no-events-on-failure guarantee.
+- [S4] `tests/integration/pg-persistence.test.ts` — the atomic Person + Sports ID
+  transaction and duplicate-ID / duplicate-Sports-ID conflicts against a real
+  database (guarded on `TEST_DATABASE_URL`, skipped when unset).

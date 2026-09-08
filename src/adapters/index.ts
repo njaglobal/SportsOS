@@ -17,6 +17,15 @@ export { InMemorySportDirectory } from "@adapters/sports/in-memory-sport-directo
 export { InMemoryEventPublisher } from "@adapters/events/in-memory-event-publisher";
 export { NoopEventPublisher } from "@adapters/events/noop-event-publisher";
 
+export type { PgConfig, Sql } from "@adapters/persistence/pg/connection";
+export {
+  createSql,
+  readPgConfigFromEnv,
+} from "@adapters/persistence/pg/connection";
+export { PgPersonRepository } from "@adapters/persistence/pg/pg-person-repository";
+export { PgAthleteProfileRepository } from "@adapters/persistence/pg/pg-athlete-profile-repository";
+export { PgSportDirectory } from "@adapters/persistence/pg/pg-sport-directory";
+
 /** Thrown by a port that has no configured adapter in the current composition. */
 export class NotConfiguredError extends Error {
   constructor(port: string) {

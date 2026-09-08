@@ -2,6 +2,11 @@
 
 > Defines `Person`, `User`, `AthleteProfile`, and `SportsId`. See ADR-002,
 > ADR-003, ADR-010, ADR-011, `person-role-model.md`.
+>
+> **[S4]** `Person` and `SportsId` are now durably persisted in PostgreSQL
+> (platform-global, no `tenantId`), created together in one transaction. Date of
+> birth is stored as private data and never exposed by public lookups. See
+> `../persistence-model.md` and ADR-020.
 
 ## Person vs User vs AthleteProfile
 

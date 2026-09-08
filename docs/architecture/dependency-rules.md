@@ -19,6 +19,12 @@
 > shared vocabulary (`CompetitionMeasure`) moved to `@shared/measurement`. The
 > first vertical slice (Create Person + issue Sports ID) added a `CreatePerson`
 > use case, `SportsIdGenerator`, and a context-specific `PersonRepository`.
+>
+> **[S4] Sprint 4:** The existing repository contracts gained a first PostgreSQL
+> implementation under `src/adapters/persistence/pg/` (the `postgres` driver,
+> confined to that directory). Contracts are unchanged. Production requires a
+> configured database; the driver is never imported from Domain or Application.
+> See ADR-020 and `../persistence-model.md`.
 
 ## Layer model
 
@@ -80,8 +86,10 @@ application code are wired together.
    (There is no longer a separate `@ports` layer — platform capability
    contracts live under `src/app/contracts/platform/`.)
 3. **No platform SDK import from `@domain` or `@app`.** This includes React,
-   React Native, `window`, `document`, Supabase client, Stripe SDK, etc. The
-   domain/application layers are pure TypeScript.
+   React Native, `window`, `document`, Supabase client, Stripe SDK, and the
+   `postgres` database driver. The domain/application layers are pure
+   TypeScript. [S4] The `postgres` driver is imported ONLY under
+   `src/adapters/persistence/pg/`.
 4. **No cross-context domain internal imports — including type-only.** [S2] A
    bounded context may not import another context's internal source files at
    all. Genuinely shared concepts live in the shared kernel (e.g.
@@ -174,14 +182,17 @@ src/
   adapters/
     clock/       # SystemClock, FakeClock
     id/          # UuidIdGenerator, FakeIdGenerator, Random/FakeSportsIdGenerator [S2]
-    persistence/ # InMemoryPersonRepository [S2]
+    persistence/ # InMemoryPersonRepository [S2]; pg/ PostgreSQL adapters [S4]
     events/      # InMemoryEventPublisher, NoopEventPublisher
   composition/   # container + production/test wiring (composition root)
   main.tsx, App.tsx, index.css  # presentation shell
 tests/           # deterministic infra + architecture tests (outside src)
+                 #   integration/ PostgreSQL tests (guarded on TEST_DATABASE_URL) [S4]
 ```
 
-The first vertical slice (Create Person + issue Sports ID) is implemented [S2]:
-a `CreatePerson` use case, a context-specific `PersonRepository` with an
-in-memory implementation, and Sports ID generation. No database schema exists
-yet — persistence is in-memory only, by design.
+The first vertical slice (Create Person + issue Sports ID) is implemented [S2].
+[S4] Person, Sports ID, AthleteProfile, participation, and minimal Sport
+reference data now have durable PostgreSQL storage behind the unchanged
+repository contracts; production requires a configured database and never falls
+back to in-memory storage. In-memory adapters are retained for unit tests. See
+`../persistence-model.md`.

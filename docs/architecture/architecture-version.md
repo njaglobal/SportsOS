@@ -4,12 +4,53 @@
 
 ## Current version
 
-**SportsOS Architecture v0.5.0 — Sprint 3 (Athlete Profiles + Multi-Sport Participation)**
+**SportsOS Architecture v0.6.0 — Sprint 4 (First Production PostgreSQL Persistence)**
 
 - Date: 2026-09-08
-- Sprint: 3 (AthleteProfile creation + multi-sport participation)
+- Sprint: 4 (durable Person / Sports ID / AthleteProfile / participation storage)
 - Status: Active
-- Supersedes: v0.4.0 (Sprint 2)
+- Supersedes: v0.5.0 (Sprint 3)
+
+## What changed in v0.6.0 (Sprint 4)
+
+A **MINOR** bump: the first durable persistence for already-proven slices, with
+no breaking change to the layer model or any repository contract.
+
+1. **PostgreSQL persistence adapter** (`src/adapters/persistence/pg/`, ADR-020).
+   The `postgres` driver backs the existing `PersonRepository`,
+   `AthleteProfileRepository`, and `SportDirectory` contracts — no ORM, no
+   generic CRUD, not the Supabase SDK. Driver imports are confined to that
+   directory, so `domain-no-external-sdk` / `app-no-external-sdk` stay green.
+2. **Schema (Sprint 4 slice only).** `persons`, `sports_ids`, `athlete_profiles`,
+   `athlete_sport_participations`, `sports`. No org/tenant/event/registration/
+   payment/rewards/QR/authz tables. Person is platform-global (no `tenantId`);
+   date of birth is private and never exposed by public queries.
+3. **Native constraints protect invariants.** Person + Sports ID created in one
+   transaction; `sports_ids` PK + `UNIQUE(person_id)` enforce a globally unique
+   Sports ID and one per Person; `athlete_profiles.UNIQUE(person_id)` enforces
+   one profile per Person; a **partial unique index** on
+   `(athlete_profile_id, sport_id) WHERE status='active'` enforces one active
+   participation while allowing ended history and re-entry.
+4. **Aggregate versioning foundation** (ADR-021). `version` on `persons` and
+   `athlete_profiles` only; immutable history and reference data are not
+   versioned. No update use case yet — schema/contract foundation only.
+5. **Typed error translation.** Adapters map PostgreSQL violations to the
+   existing persistence-error unions; no SQLSTATE/driver detail leaks.
+6. **Migration discipline** (ADR-022): numbered, immutable, additive-by-default,
+   no schema mutation from app startup. Two initial migrations applied.
+7. **RLS enabled, no policies** on all five tables (deny via Data API; trusted
+   server connection reaches data). Tenant RLS deferred to the first
+   tenant-owned slice; auth-based access control out of scope.
+8. **Production requires the database** and fails loudly without it — no silent
+   in-memory fallback. In-memory adapters retained for unit tests; test
+   composition stays in-memory.
+9. **Events unchanged.** Still published only after successful persistence; DB
+   durability and event publication are not yet atomic (no outbox, no
+   exactly-once claim).
+10. **New docs.** `docs/persistence-model.md`, `docs/operations/database.md`;
+    ADR-020/021/022. Guarded integration tests under `tests/integration/`.
+
+## What changed in v0.5.0 (Sprint 3)
 
 ## What changed in v0.5.0 (Sprint 3)
 
@@ -171,6 +212,9 @@ Semantic versioning, applied to the **architecture** (not the product):
 | [017](../adr/017-cross-context-interaction.md) | Cross-Context Interaction | **New** [C] |
 | [018](../adr/018-architecture-enforcement.md) | Architecture Enforcement | Implemented [S1], extended [S2] |
 | [019](../adr/019-athlete-bounded-context.md) | Distinct Athlete Bounded Context | **New** [S3] |
+| [020](../adr/020-postgresql-persistence-adapter.md) | PostgreSQL Persistence Adapter | **New** [S4] |
+| [021](../adr/021-aggregate-versioning.md) | Aggregate Versioning | **New** [S4] |
+| [022](../adr/022-migration-discipline.md) | Migration Discipline | **New** [S4] |
 
 ## Sprint 0.1 deliverable map
 

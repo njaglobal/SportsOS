@@ -3,6 +3,12 @@
 > Sprint 0.1 — Architecture Correction. Status: **Approved for Sprint 1
 > planning.** See `architecture-version.md` for versioning and `docs/adr/`
 > for decisions.
+>
+> **[S4] Sprint 4:** The Person, Sports ID, AthleteProfile, participation, and
+> minimal Sport reference slices now have durable PostgreSQL storage behind the
+> unchanged repository contracts. Production requires a configured database and
+> never falls back to in-memory storage. See `../persistence-model.md`,
+> `operations/database.md`, and ADR-020/021/022.
 
 ## 1. Purpose
 
