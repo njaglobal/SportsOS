@@ -15,7 +15,7 @@ adapters (R22).
 A **React Native** shell that:
 
 - Imports the pure TypeScript `src/domain/` and `src/app/` layers unchanged.
-- Imports the `src/ports/` interfaces unchanged.
+- Imports the `src/app/contracts/platform/` interfaces unchanged.
 - Provides **React Native adapters** implementing the native capability ports
   (camera, QR scanner, push, secure storage, biometrics, file upload, deep
   links, share, location, offline sync).

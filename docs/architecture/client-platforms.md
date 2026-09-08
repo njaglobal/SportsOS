@@ -54,7 +54,7 @@ Only adapters and the presentation shell differ. See `mobile-strategy.md`.
 
 ## Native capability ports
 
-Defined in `src/ports/native-ports.ts`:
+Defined in `src/app/contracts/platform/native-ports.ts` [S2]:
 
 | Port | Web adapter (future) | Mobile adapter (future) |
 |---|---|---|

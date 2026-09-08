@@ -1,5 +1,5 @@
 import type { Id } from "@shared/kernel";
-import type { CompetitionMeasure } from "@domain/sports/sports.types";
+import type { CompetitionMeasure } from "@shared/measurement";
 
 /**
  * Competition aggregate boundaries (see ADR-005, ADR-013,

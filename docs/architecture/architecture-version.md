@@ -4,12 +4,35 @@
 
 ## Current version
 
-**SportsOS Architecture v0.3.0 — Sprint 1 (Application Foundation & Enforcement)**
+**SportsOS Architecture v0.4.0 — Sprint 2 (First Vertical Slice: Create Person + Sports ID)**
 
-- Date: 2026-09-08
-- Sprint: 1 (Machine-enforced boundaries + minimal application foundation)
+- Date: 2026-09-09
+- Sprint: 2 (Create Person + issue permanent Sports ID)
 - Status: Active
-- Supersedes: v0.2.0 (Sprint 0.1)
+- Supersedes: v0.3.0 (Sprint 1)
+
+## What changed in v0.4.0 (Sprint 2)
+
+A **MINOR** bump: the first business capability plus two enforcement
+corrections, no breaking change to the layer model.
+
+1. **Preliminary correction A — ports re-homed.** The `src/ports/` layer was
+   removed; native platform capability contracts moved to
+   `src/app/contracts/platform/`. The `@ports` alias and `domain-no-ports` rule
+   were retired (ADR-016).
+2. **Preliminary correction B — cross-context tightened.** The `no-cross-context`
+   rule now forbids **type-only** imports across bounded contexts too. The shared
+   `CompetitionMeasure` vocabulary moved to `@shared/measurement`; Sports and
+   Competition both import it from there (ADR-018).
+3. **Create Person slice.** `createPerson` domain factory + `SportsId` value
+   object; `PersonCreated` and `SportsIdIssued` domain events; `CreatePerson`
+   use case with typed failures; `SportsIdGenerator` and context-specific
+   `PersonRepository` contracts; `RandomSportsIdGenerator`/`FakeSportsIdGenerator`
+   and `InMemoryPersonRepository` adapters (ADR-002).
+4. **Composition** now wires the `CreatePerson` use case in both production and
+   test containers; production marks in-memory storage as temporary.
+5. **Tests** cover the domain factory, the use case (success, determinism,
+   collision retry + bounded-error, no events on failure), and the repository.
 
 ## What changed in v0.3.0 (Sprint 1)
 
@@ -111,7 +134,7 @@ Semantic versioning, applied to the **architecture** (not the product):
 | [015](../adr/015-rewards-idempotency.md) | Rewards Idempotency and Reversal | **New** [C] |
 | [016](../adr/016-layer-port-ownership.md) | Layer and Port Ownership | **New** [C] |
 | [017](../adr/017-cross-context-interaction.md) | Cross-Context Interaction | **New** [C] |
-| [018](../adr/018-architecture-enforcement.md) | Architecture Enforcement | **Implemented** [S1] |
+| [018](../adr/018-architecture-enforcement.md) | Architecture Enforcement | Implemented [S1], extended [S2] |
 
 ## Sprint 0.1 deliverable map
 

@@ -1,7 +1,12 @@
 /**
- * Native/platform capability ports. These are NOT implemented in this sprint.
- * They exist to prove the architecture places platform APIs behind adapters
- * (invariant 22). Future web and native adapters implement these.
+ * Native / platform capability contracts. These are application-owned
+ * contracts (ADR-016): the application layer declares the capabilities it
+ * needs, and adapters (web or native) implement them. They are NOT implemented
+ * in this sprint — they exist to keep platform APIs behind contracts so the
+ * domain and use cases never touch a browser or native API directly (R22).
+ *
+ * Relocated from the former `src/ports/` layer in Sprint 2: capability
+ * contracts belong to the application, alongside `Clock`, `IdGenerator`, etc.
  */
 
 export interface CameraPort {

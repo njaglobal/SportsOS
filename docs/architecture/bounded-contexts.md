@@ -66,7 +66,9 @@ not role-name based. See `person-role-model.md`, `authorization.md`, ADR-012.
 
 ### 3. Sports Catalog
 
-**Owns:** `Sport`, `Discipline`, `CompetitionMeasure`.
+**Owns:** `Sport`, `Discipline`. (The `CompetitionMeasure` vocabulary is a
+neutral shared type in `@shared/measurement` [S2], used by both this context and
+the Competition context.)
 **Ownership classification [C]:** Reference data (platform-global, no tenantId).
 **Responsibility:** the canonical catalog of sports, disciplines, and how they
 are measured/scored. Reference data; slow-changing. A future controlled

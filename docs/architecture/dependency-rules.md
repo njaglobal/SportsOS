@@ -12,6 +12,13 @@
 > capability contracts moved into `src/app/contracts/`; the generic
 > `Repository` and `EventBus` interfaces were removed (see clarifications 4 and
 > the event contract). A composition root (`src/composition/`) wires adapters.
+>
+> **[S2] Sprint 2:** The separate `src/ports/` layer was removed — platform
+> capability contracts now live under `src/app/contracts/platform/`. Cross-context
+> isolation was tightened to forbid **type-only** imports too; the one genuinely
+> shared vocabulary (`CompetitionMeasure`) moved to `@shared/measurement`. The
+> first vertical slice (Create Person + issue Sports ID) added a `CreatePerson`
+> use case, `SportsIdGenerator`, and a context-specific `PersonRepository`.
 
 ## Layer model
 
@@ -19,8 +26,7 @@
 flowchart TB
   Shared["shared kernel (no domain semantics)"]
   Domain["domain layer (bounded contexts, aggregates, domain events)"]
-  App["application layer (contracts, use-cases, services)"]
-  NativePorts["native ports (Camera, QrScanner, ... — application-owned)"]
+  App["application layer (contracts inc. platform capability contracts, use-cases, services)"]
   Adapters["adapters (deterministic + platform impls)"]
   Composition["composition root (production / test wiring)"]
   Presentation["presentation (React web now, mobile shell later)"]
@@ -29,7 +35,6 @@ flowchart TB
   App --> Domain
   App --> Shared
   Adapters -.implements.-> App
-  Adapters -.implements.-> NativePorts
   Composition --> App
   Composition --> Adapters
   Presentation --> App
@@ -70,15 +75,18 @@ application code are wired together.
 
 1. **No `@adapters` import from `@domain` or `@app`.** The domain and
    application layers must not know which infrastructure is in use.
-2. **No `@ports`/`@app`/`@adapters` import from `@domain`.** The domain layer
-   produces events and entities; the application layer handles delivery and
-   persistence.
+2. **No `@app`/`@adapters` import from `@domain`.** The domain layer produces
+   events and entities; the application layer handles delivery and persistence.
+   (There is no longer a separate `@ports` layer — platform capability
+   contracts live under `src/app/contracts/platform/`.)
 3. **No platform SDK import from `@domain` or `@app`.** This includes React,
    React Native, `window`, `document`, Supabase client, Stripe SDK, etc. The
    domain/application layers are pure TypeScript.
-4. **No cross-context domain internal imports at runtime.** A bounded context
-   may not import another context's internals at runtime. Type-only references
-   are permitted (types erase at build time and create no runtime coupling).
+4. **No cross-context domain internal imports — including type-only.** [S2] A
+   bounded context may not import another context's internal source files at
+   all. Genuinely shared concepts live in the shared kernel (e.g.
+   `@shared/measurement`) or an explicitly published contract, never reached
+   into across contexts.
 5. **No cycles.**
 
 ## Cross-context communication strategy
@@ -106,8 +114,10 @@ Choose synchronous vs asynchronous per consistency requirement.
 | `Clock` | Application | `src/app/contracts/clock.ts` |
 | `IdGenerator` | Application | `src/app/contracts/id-generator.ts` |
 | `EventPublisher`, `IntegrationEvent` | Application | `src/app/contracts/events.ts` |
+| `SportsIdGenerator` [S2] | Application | `src/app/contracts/sports-id-generator.ts` |
+| `PersonRepository` (identity slice) [S2] | Application | `src/app/contracts/person-repository.ts` |
 | `DomainEvent` | Domain | `src/domain/aggregate.ts` |
-| `CameraPort`, `QrScannerPort`, etc. | Application | `src/ports/native-ports.ts` |
+| `CameraPort`, `QrScannerPort`, etc. [S2] | Application | `src/app/contracts/platform/native-ports.ts` |
 
 Adapters in `src/adapters/` implement these contracts. This inverts the
 dependency so the domain never depends on infrastructure.
@@ -131,9 +141,9 @@ Rules of `error` severity fail the check (non-zero exit). Enforced rules:
 | Rule | Meaning |
 |---|---|
 | `no-circular` | No dependency cycles. |
-| `domain-no-app` / `-ports` / `-adapters` / `-composition` / `-presentation` | Domain imports none of these layers. |
+| `domain-no-app` / `-adapters` / `-composition` / `-presentation` | Domain imports none of these layers. |
 | `domain-no-external-sdk` | Domain imports no npm package (React, browser, DB, payment SDKs). |
-| `no-cross-context-runtime` | A domain context may not import another context's internals at runtime (type-only allowed). |
+| `no-cross-context` | A domain context may not import another context's internals — including type-only imports [S2]. |
 | `app-no-adapters` / `-composition` / `-presentation` | Application imports no adapters, wiring, or UI. |
 | `app-no-external-sdk` | Application imports no npm platform package. |
 | `presentation-no-adapters` | Presentation reaches infrastructure via the composition root, not adapters directly. |
@@ -156,19 +166,22 @@ src/
   shared/        # shared kernel (Id, Brand, Result, ISODateString)
   domain/        # bounded contexts (type definitions only) + aggregate.ts (DomainEvent)
   app/
-    contracts/   # UseCase, Result/AppError, Clock, IdGenerator, EventPublisher, IntegrationEvent
-    use-cases/   # per-context orchestration (added with vertical slices)
+    contracts/   # UseCase, Result/AppError, Clock, IdGenerator, EventPublisher,
+                 #   IntegrationEvent, SportsIdGenerator, PersonRepository
+      platform/  # native platform capability contracts (Camera, QrScanner, ...) [S2]
+    use-cases/   # per-context orchestration (CreatePerson [S2])
     services/    # application services (added with vertical slices)
-  ports/         # native platform capability ports (application-owned)
   adapters/
     clock/       # SystemClock, FakeClock
-    id/          # UuidIdGenerator, FakeIdGenerator
+    id/          # UuidIdGenerator, FakeIdGenerator, Random/FakeSportsIdGenerator [S2]
+    persistence/ # InMemoryPersonRepository [S2]
     events/      # InMemoryEventPublisher, NoopEventPublisher
   composition/   # container + production/test wiring (composition root)
   main.tsx, App.tsx, index.css  # presentation shell
 tests/           # deterministic infra + architecture tests (outside src)
 ```
 
-Only the minimum structure to express boundaries and support future vertical
-slices exists. No product use-cases, no repository implementations, no database
-schema — by design.
+The first vertical slice (Create Person + issue Sports ID) is implemented [S2]:
+a `CreatePerson` use case, a context-specific `PersonRepository` with an
+in-memory implementation, and Sports ID generation. No database schema exists
+yet — persistence is in-memory only, by design.

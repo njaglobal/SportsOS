@@ -47,7 +47,7 @@ interface QueuedOperation {
 }
 ```
 
-The port is defined in `src/ports/native-ports.ts`. Future adapters:
+The contract is defined in `src/app/contracts/platform/native-ports.ts` [S2]. Future adapters:
 
 - **Web** — IndexedDB queue + background sync (when PWA is built).
 - **Mobile** — native persistent queue + background sync / work manager.

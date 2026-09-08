@@ -9,6 +9,9 @@ export { SystemClock } from "@adapters/clock/system-clock";
 export { FakeClock } from "@adapters/clock/fake-clock";
 export { UuidIdGenerator } from "@adapters/id/uuid-id-generator";
 export { FakeIdGenerator } from "@adapters/id/fake-id-generator";
+export { RandomSportsIdGenerator } from "@adapters/id/sports-id-generator";
+export { FakeSportsIdGenerator } from "@adapters/id/fake-sports-id-generator";
+export { InMemoryPersonRepository } from "@adapters/persistence/in-memory-person-repository";
 export { InMemoryEventPublisher } from "@adapters/events/in-memory-event-publisher";
 export { NoopEventPublisher } from "@adapters/events/noop-event-publisher";
 

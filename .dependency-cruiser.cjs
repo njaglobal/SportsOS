@@ -27,13 +27,6 @@ module.exports = {
       to: { path: "^src/app" },
     },
     {
-      name: "domain-no-ports",
-      comment: "Domain must not depend on ports (ADR-016). Application owns them.",
-      severity: "error",
-      from: { path: "^src/domain" },
-      to: { path: "^src/ports" },
-    },
-    {
       name: "domain-no-adapters",
       comment: "Domain must not depend on adapters/infrastructure.",
       severity: "error",
@@ -63,15 +56,14 @@ module.exports = {
       to: { dependencyTypes: ["npm", "npm-dev", "npm-optional", "npm-peer", "npm-bundled"] },
     },
     {
-      name: "no-cross-context-runtime",
+      name: "no-cross-context",
       comment:
-        "A bounded context must not import another context's internals at runtime (R26). Type-only references are permitted because types erase at build time and create no runtime coupling.",
+        "A bounded context must not import another context's internal source files at all — including type-only imports (R26, ADR-018). Genuinely shared concepts must live in the shared kernel (e.g. @shared/measurement) or an explicitly published contract, never be reached into across contexts.",
       severity: "error",
       from: { path: "^src/domain/([^/]+)/" },
       to: {
         path: "^src/domain/([^/]+)/",
         pathNot: ["^src/domain/$1/"],
-        dependencyTypesNot: ["type-only"],
       },
     },
 

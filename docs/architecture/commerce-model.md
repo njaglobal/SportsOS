@@ -185,7 +185,7 @@ is acceptable.
 
 ## Port: PaymentGateway
 
-A future `PaymentGatewayPort` (in `src/ports/`, application-owned) will
+A future `PaymentGatewayPort` (in `src/app/contracts/`, application-owned) will
 abstract provider interactions (authorize, capture, refund, webhook handling).
 Webhook signature verification happens in the adapter, not in the domain. Not
 built this sprint.

@@ -1,4 +1,5 @@
 import type { Id } from "@shared/kernel";
+import type { CompetitionMeasure } from "@shared/measurement";
 
 /**
  * Sport — a top-level sport (e.g. Basketball, Swimming, Track & Field).
@@ -21,14 +22,6 @@ export interface Discipline {
   readonly name: string;
   readonly measure: CompetitionMeasure;
 }
-
-export type CompetitionMeasure =
-  | "timed"
-  | "measured_distance"
-  | "measured_score"
-  | "judged"
-  | "head_to_head"
-  | "placement";
 
 export interface AthleteSportParticipation {
   readonly athleteProfileId: Id<"AthleteProfile">;

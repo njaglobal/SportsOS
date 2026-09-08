@@ -24,7 +24,8 @@ without coupling core logic to a platform (R22).
 2. **Domain and application layers are pure TypeScript** with zero platform
    dependencies (no React, React Native, browser, Supabase, Stripe, Node-only
    imports). This is enforced by layer rules.
-3. **Native/platform capabilities are ports** in `src/ports/native-ports.ts`,
+3. **Native/platform capabilities are application-owned contracts** in
+   `src/app/contracts/platform/native-ports.ts` [S2],
    implemented by adapters per platform. The domain/application never import
    an adapter or platform SDK.
 4. **Future mobile distribution** via either:
@@ -69,6 +70,6 @@ See `client-platforms.md`, `mobile-strategy.md`, `dependency-rules.md`.
 ## Compliance
 
 - `@domain` and `@app` import no platform SDK (enforced by review + lint).
-- `src/ports/native-ports.ts` defines all native capability interfaces.
+- `src/app/contracts/platform/native-ports.ts` [S2] defines all native capability contracts.
 - `src/adapters/` is the only place platform SDKs may be imported.
 - No PWA/native implementation exists this sprint (by design).

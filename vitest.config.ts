@@ -6,7 +6,6 @@ export default defineConfig({
     alias: {
       "@app": path.resolve(__dirname, "src/app"),
       "@domain": path.resolve(__dirname, "src/domain"),
-      "@ports": path.resolve(__dirname, "src/ports"),
       "@adapters": path.resolve(__dirname, "src/adapters"),
       "@composition": path.resolve(__dirname, "src/composition"),
       "@shared": path.resolve(__dirname, "src/shared"),

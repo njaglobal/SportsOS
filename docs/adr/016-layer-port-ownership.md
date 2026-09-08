@@ -22,11 +22,11 @@ directory, blurring ownership.
 
 1. **Domain layer must NOT depend on ports.** The domain contains business
    model, aggregates, value objects, domain events, and invariants only. It
-   does not import from `@ports` or any infrastructure/native capability.
+   does not import any infrastructure or native capability contract.
 2. **Application layer owns ports.** `Repository`, `EventBus`, `Clock`,
    `IdGenerator`, and all native capability ports (`CameraPort`,
    `QrScannerPort`, etc.) are owned by the application layer. They live in
-   `src/ports/` but are application-owned contracts.
+   `src/app/contracts/` (see Sprint 2 update) and are application-owned.
 3. **Domain produces events; application handles delivery.** Aggregates
    produce `DomainEvent` values. The application layer's `EventBus` port
    routes them to interested contexts. The domain does not call `eventBus.
@@ -49,6 +49,17 @@ Port ownership table:
 | `CameraPort`, `QrScannerPort`, etc. | Application | No |
 
 See `dependency-rules.md`.
+
+## Sprint 2 update
+
+The separate `src/ports/` directory was removed. Native platform capability
+contracts (`CameraPort`, `QrScannerPort`, etc.) now live under
+`src/app/contracts/platform/native-ports.ts` — still application-owned, just
+co-located with the other application contracts. The `@ports` path alias and the
+`domain-no-ports` enforcement rule were retired; `domain-no-app` already covers
+the domain not importing them. The underlying decision is unchanged: the domain
+never depends on capability contracts, the application owns them, and adapters
+implement them.
 
 ## Consequences
 
@@ -75,9 +86,9 @@ See `dependency-rules.md`.
 
 ## Compliance
 
-- `src/domain/` files do not import from `@ports`.
-- `src/ports/` files are documented as application-owned.
+- `src/domain/` files import no capability contract (enforced by `domain-no-app`).
+- Native capability contracts live under `src/app/contracts/platform/` [S2], application-owned.
 - Domain aggregates return `DomainEvent` values; application publishes them.
 - `src/domain/aggregate.ts` `DomainEvent` comment says "application routes
   them" (corrected from "routed through an application-layer port").
-- ESLint code review rejects any `@domain` import of `@ports`.
+- `dependency-cruiser` rejects any `@domain` import of an application contract.

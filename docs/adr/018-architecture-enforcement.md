@@ -23,10 +23,9 @@ Add machine-enforced boundary rules using `dependency-cruiser` (or
 
 1. **Layer rules:**
    - `@domain` may only import from `@shared` and other `@domain` files.
-   - `@app` may import from `@domain`, `@ports`, `@shared`.
-   - `@adapters` may import from `@ports`, `@domain`, `@shared`, platform SDKs.
-   - `@ports` may import from `@shared` and `@domain` (for type references).
-   - `@domain` must NOT import from `@ports` (ADR-016).
+   - `@app` may import from `@domain`, `@shared`.
+   - `@adapters` may import from `@app` (contracts), `@domain`, `@shared`, platform SDKs.
+   - `@domain` must NOT import from `@app` (ADR-016) [S2].
    - `@domain` and `@app` must NOT import from `@adapters`.
    - No layer may import platform SDKs except `@adapters`.
 
@@ -62,20 +61,33 @@ also proves the checker flags a forbidden import fixture
 (`tests/fixtures/forbidden-domain/`, outside `src`).
 
 Enforced `error`-severity rules: `no-circular`; `domain-no-app`,
-`domain-no-ports`, `domain-no-adapters`, `domain-no-composition`,
-`domain-no-presentation`, `domain-no-external-sdk`; `no-cross-context-runtime`;
-`app-no-adapters`, `app-no-composition`, `app-no-presentation`,
-`app-no-external-sdk`; `presentation-no-adapters`;
-`adapters-no-presentation-or-composition`.
+`domain-no-adapters`, `domain-no-composition`, `domain-no-presentation`,
+`domain-no-external-sdk`; `no-cross-context`; `app-no-adapters`,
+`app-no-composition`, `app-no-presentation`, `app-no-external-sdk`;
+`presentation-no-adapters`; `adapters-no-presentation-or-composition`.
+(`domain-no-ports` was retired in Sprint 2 when the ports layer was removed.)
 
-**Type-only cross-context decision:** `no-cross-context-runtime` forbids a
-domain context importing another context's internals **at runtime** but permits
-`import type` references, because types erase at build time and create no
-runtime coupling. This keeps the one existing legitimate case (Competition
-referencing the Sports `CompetitionMeasure` vocabulary via `import type`) legal
-while still blocking all runtime coupling. If a future slice needs a runtime
-cross-context value, it must go through an application contract, event, or
-shared identifier — not a direct import.
+**Type-only cross-context decision (Sprint 1, superseded by Sprint 2):** Sprint 1
+permitted `import type` across contexts, keeping the single case (Competition
+referencing the Sports `CompetitionMeasure` vocabulary) legal. Sprint 2 reversed
+this — see "Sprint 2 update" below.
+
+## Sprint 2 update
+
+Two enforcement changes were made:
+
+1. **Ports layer removed.** Native capability contracts moved to
+   `src/app/contracts/platform/`; the `domain-no-ports` rule and `@ports` alias
+   were retired (ADR-016).
+2. **Cross-context isolation tightened to include type-only imports.** The rule
+   was renamed `no-cross-context` and no longer exempts `import type`: a bounded
+   context may not reach into another context's source files at all, even for a
+   type. The one shared vocabulary, `CompetitionMeasure`, moved to
+   `@shared/measurement`, which both Sports and Competition import. Rationale:
+   even a type-only import couples the two contexts' source layouts and invites
+   accidental runtime coupling later; a genuinely shared concept belongs in the
+   shared kernel or a published contract. `tests/architecture.test.ts` includes
+   a fixture proving a type-only cross-context import is now flagged.
 
 ## Consequences
 

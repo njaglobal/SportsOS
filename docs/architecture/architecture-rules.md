@@ -157,10 +157,10 @@ ADR-009.
 ## R22. Native/platform APIs must remain behind adapters.
 
 Camera, QR scanner, push, secure storage, biometrics, file upload, deep links,
-sharing, location, offline sync — all are ports in `src/ports/native-ports.ts`,
-implemented by adapters per platform. Native platform ports are owned by the
-application layer, NOT the domain [C]. See `client-platforms.md`,
-`mobile-strategy.md`, ADR-016.
+sharing, location, offline sync — all are capability contracts in
+`src/app/contracts/platform/native-ports.ts` [S2], implemented by adapters per
+platform. These native platform contracts are owned by the application layer,
+NOT the domain [C]. See `client-platforms.md`, `mobile-strategy.md`, ADR-016.
 
 ## R23. Architecture must allow future limited offline workflows for event operations without implementing them now.
 
@@ -177,10 +177,10 @@ processor, requires only a new adapter. See `dependency-rules.md`, ADR-016.
 ## R25. [C] Domain must not depend on native/browser/infrastructure ports.
 
 The domain layer contains business model and invariants only. It must NOT
-import from `@ports` or any infrastructure/native capability. Application
-owns orchestration and required external capability contracts. Repository,
-EventBus, Clock, and IdGenerator are application-owned ports. See
-`dependency-rules.md`, ADR-016.
+import any infrastructure or native capability contract. Application owns
+orchestration and the required external capability contracts (`Clock`,
+`IdGenerator`, `SportsIdGenerator`, `EventPublisher`, repositories, native
+platform contracts). See `dependency-rules.md`, ADR-016.
 
 ## R26. [C] Cross-context interaction is not limited to EventBus.
 
@@ -188,7 +188,10 @@ Bounded-context domain internals must not directly depend on another context's
 repositories or domain internals. Cross-context interaction may use: published
 application contracts, synchronous query/service ports, domain/integration
 events, and immutable shared identifiers. Synchronous vs asynchronous is
-chosen per consistency requirement. See `dependency-rules.md`, ADR-017.
+chosen per consistency requirement. **[S2]** Cross-context imports are now
+forbidden even when type-only; a genuinely shared concept (e.g.
+`CompetitionMeasure`) lives in the shared kernel (`@shared/measurement`). See
+`dependency-rules.md`, ADR-017, ADR-018.
 
 ## R27. [S1] TeamMembership is team/organization-scoped; event participation is a separate concept.
 
@@ -224,13 +227,13 @@ semantics. See `application-foundation.md`, ADR-016, ADR-018.
 
 ## Enforcement
 
-- **TypeScript path aliases** keep layers navigable (`@domain`, `@app`, `@ports`,
+- **TypeScript path aliases** keep layers navigable (`@domain`, `@app`,
   `@adapters`, `@composition`, `@shared`).
 - **`dependency-cruiser`** [S1] machine-enforces all layer and context-isolation
   rules. Run independently with `npm run architecture:check`; the same ruleset
   is asserted in `tests/architecture.test.ts`. See `dependency-rules.md` and
-  ADR-018. Runtime cross-context domain imports fail the check; type-only
-  references are permitted.
+  ADR-018. Cross-context domain imports fail the check — including type-only
+  references [S2].
 - **ESLint `import/no-cycle`** is a secondary guard against circular dependencies.
 - **Code review** remains a backstop but is no longer the primary boundary
   mechanism.

@@ -1,4 +1,4 @@
-import type { Id } from "@shared/kernel";
+import type { Id, ISODateString } from "@shared/kernel";
 
 /**
  * Permanent Sports ID value object.
@@ -8,11 +8,15 @@ import type { Id } from "@shared/kernel";
  *  - The Sports ID is permanent and survives account/entity deletion.
  *  - The Sports ID is issued by the platform, never chosen by the person.
  *  - The Sports ID is platform-global identity, NOT tenant/organization-owned.
+ *  - The Sports ID value encodes no sensitive data (no birth date, gender,
+ *    location, sport, or organization).
  *  - SportsId and QrCredential are separate concepts (ADR-007).
+ *
+ * Construct via `issueSportsId` (sports-id.ts) — never build the shape by hand.
  */
 export interface SportsId {
   readonly value: Id<"SportsId">;
-  readonly issuedAt: string;
+  readonly issuedAt: ISODateString;
   readonly status: SportsIdStatus;
 }
 

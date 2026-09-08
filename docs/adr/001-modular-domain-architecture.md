@@ -81,8 +81,9 @@ See `bounded-contexts.md` and `dependency-rules.md`.
 
 ## Compliance
 
-- TypeScript path aliases (`@domain`, `@app`, `@ports`, `@adapters`, `@shared`).
+- TypeScript path aliases (`@domain`, `@app`, `@adapters`, `@shared`). (The
+  `@ports` alias was retired in Sprint 2; see ADR-016.)
 - ESLint `import/no-cycle`.
-- Code review rejects `@domain` imports of `@ports` or `@adapters` [C], and
+- Code review rejects `@domain` imports of application contracts or `@adapters` [C], and
   `@app` imports of `@adapters` or platform SDKs.
 - Future: `dependency-cruiser` / `eslint-plugin-boundaries` rules (ADR-018).

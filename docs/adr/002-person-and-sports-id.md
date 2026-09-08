@@ -80,3 +80,10 @@ See `identity-model.md`.
 - `Person.lifecycleStatus` tracks layered lifecycle [C].
 - Application layer enforces one-Sports-ID-per-Person and at-most-one-AthleteProfile-per-Person [C].
 - Layered retention model documented in `audit-integrity.md`, ADR-011 [C].
+- **[S2]** The `createPerson` domain factory constructs a valid, active Person
+  and issues exactly one `SportsId` in the same operation; there is no path to
+  an active Person without a Sports ID, and no operation replaces a Sports ID.
+- **[S2]** The `CreatePerson` use case generates the Person ID and a
+  platform-issued Sports ID (via `SportsIdGenerator`), verifies Sports ID
+  uniqueness with bounded retry, and persists via `PersonRepository`; the Sports
+  ID value is opaque and carries no sensitive data.
