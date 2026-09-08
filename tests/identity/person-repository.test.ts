@@ -12,7 +12,6 @@ function makePerson(personId: string, sportsIdValue: string): Person {
     sportsIdValue: sportsIdValue as Id<"SportsId">,
     displayName: "Test Person",
     dateOfBirth: null,
-    guardianId: null,
     now: NOW,
     personCreatedEventId: "evt-1",
     sportsIdIssuedEventId: "evt-2",

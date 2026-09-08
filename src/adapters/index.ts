@@ -12,6 +12,8 @@ export { FakeIdGenerator } from "@adapters/id/fake-id-generator";
 export { RandomSportsIdGenerator } from "@adapters/id/sports-id-generator";
 export { FakeSportsIdGenerator } from "@adapters/id/fake-sports-id-generator";
 export { InMemoryPersonRepository } from "@adapters/persistence/in-memory-person-repository";
+export { InMemoryAthleteProfileRepository } from "@adapters/persistence/in-memory-athlete-profile-repository";
+export { InMemorySportDirectory } from "@adapters/sports/in-memory-sport-directory";
 export { InMemoryEventPublisher } from "@adapters/events/in-memory-event-publisher";
 export { NoopEventPublisher } from "@adapters/events/noop-event-publisher";
 

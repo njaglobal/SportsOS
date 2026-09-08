@@ -8,6 +8,11 @@ export type {
   PersonPersistenceError,
 } from "@app/contracts/person-repository";
 export type {
+  AthleteProfileRepository,
+  AthleteProfilePersistenceError,
+} from "@app/contracts/athlete-profile-repository";
+export type { SportDirectory } from "@app/contracts/sport-directory";
+export type {
   DomainEvent,
   IntegrationEvent,
   EventPublisher,

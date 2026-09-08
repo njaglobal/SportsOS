@@ -35,7 +35,6 @@ async function seed(repo: InMemoryPersonRepository, personId: string, sportsIdVa
     sportsIdValue: sportsIdValue as Id<"SportsId">,
     displayName: "Seed",
     dateOfBirth: null,
-    guardianId: null,
     now: NOW,
     personCreatedEventId: "seed-1",
     sportsIdIssuedEventId: "seed-2",

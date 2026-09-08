@@ -20,8 +20,8 @@ export interface NewPersonInput {
   readonly personId: Id<"Person">;
   readonly sportsIdValue: Id<"SportsId">;
   readonly displayName: string;
+  /** Private identity data (see Person.dateOfBirth). Optional. */
   readonly dateOfBirth?: string | null;
-  readonly guardianId?: Id<"Person"> | null;
   readonly now: ISODateString;
   readonly personCreatedEventId: string;
   readonly sportsIdIssuedEventId: string;
@@ -39,10 +39,13 @@ export interface CreatedPerson {
  *
  * Enforced invariants:
  *  - identity data is valid (non-empty display name, real past date of birth
- *    if given, a person cannot be their own guardian);
+ *    if given);
  *  - a new active Person always has exactly one Sports ID;
  *  - the Person is platform-global (there is no tenant/org input to attach);
  *  - the initial lifecycle status is "active".
+ *
+ * Guardian relationships are deliberately NOT modelled here: they are a separate
+ * relationship concept (Auth context) and must not couple to Person identity.
  *
  * Expected validation failures are returned as a typed `Result`, never thrown.
  */
@@ -69,11 +72,6 @@ export function createPerson(
     }
   }
 
-  const guardianId = input.guardianId ?? null;
-  if (guardianId !== null && guardianId === input.personId) {
-    return Result.fail(err("invalid_guardian", "A person cannot be their own guardian."));
-  }
-
   if (input.sportsIdValue.trim().length === 0) {
     return Result.fail(err("invalid_sports_id", "A Sports ID value is required to create an active Person."));
   }
@@ -84,7 +82,6 @@ export function createPerson(
     sportsId,
     displayName,
     dateOfBirth,
-    guardianId,
     lifecycleStatus: "active",
   };
 

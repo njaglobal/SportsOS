@@ -106,4 +106,5 @@ sequenceDiagram
 For a minor athlete, the `payerPersonId` is typically the guardian's
 `PersonId`, and the guardian must hold the `guardian` role scoped to the
 minor. Consent is recorded on the Registration (future field). This composes
-with the identity model's `guardianId` relationship.
+with the separate `GuardianRelationship` [S3] (not a field on Person; see
+ADR-019).

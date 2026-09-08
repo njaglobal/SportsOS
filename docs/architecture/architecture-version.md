@@ -4,12 +4,47 @@
 
 ## Current version
 
-**SportsOS Architecture v0.4.0 — Sprint 2 (First Vertical Slice: Create Person + Sports ID)**
+**SportsOS Architecture v0.5.0 — Sprint 3 (Athlete Profiles + Multi-Sport Participation)**
 
-- Date: 2026-09-09
-- Sprint: 2 (Create Person + issue permanent Sports ID)
+- Date: 2026-09-08
+- Sprint: 3 (AthleteProfile creation + multi-sport participation)
 - Status: Active
-- Supersedes: v0.3.0 (Sprint 1)
+- Supersedes: v0.4.0 (Sprint 2)
+
+## What changed in v0.5.0 (Sprint 3)
+
+A **MINOR** bump: a new bounded context and two vertical slices, no breaking
+change to the layer model.
+
+1. **New Athlete bounded context** (`src/domain/athlete/`, ADR-019).
+   `AthleteProfile` and `AthleteSportParticipation` moved out of Identity/Sports
+   into their own context. It references `Person` and `Sport` by branded `Id<>`
+   only — no cross-context domain imports.
+2. **Identity clarified.** `guardianId` removed from `Person`; guardian
+   relationships stay in the Auth context as `GuardianRelationship`. Date of
+   birth marked as private identity data — never copied into AthleteProfile,
+   events, or the future public Sports Passport.
+3. **Create AthleteProfile slice.** `createAthleteProfile` domain factory;
+   `AthleteProfileCreated` event; `CreateAthleteProfile` use case with typed
+   failures (invalid_input, person_not_found, athlete_profile_already_exists,
+   duplicate_athlete_profile_id, persistence_unavailable). At most one profile
+   per Person; optional; sport-independent; no Person identity duplication.
+4. **Add AthleteSport slice.** `addAthleteSport` domain factory;
+   `AthleteSportAdded` event; `AddAthleteSport` use case with typed failures
+   (invalid_input, athlete_profile_not_found, sport_not_found,
+   already_participating, persistence_unavailable). Many-to-many; leaving a
+   sport is a non-destructive lifecycle change, never a delete.
+5. **New contracts.** Context-specific `AthleteProfileRepository` (no generic
+   CRUD; enforces unique id + one-per-Person + no duplicate active sport) and a
+   minimal read-only `SportDirectory` query for sport existence (no catalog
+   CRUD). `PersonRepository` gained `findById`.
+6. **New adapters.** `InMemoryAthleteProfileRepository` and
+   `InMemorySportDirectory` (both marked temporary). Persistence stays
+   in-memory this sprint by explicit brief instruction — no database.
+7. **Composition** wires both new use cases in production and test containers.
+8. **Events published only after successful persistence**; a future outbox is
+   documented, not built. The Sports Passport remains a documented future read
+   model, not implemented and not stored on AthleteProfile.
 
 ## What changed in v0.4.0 (Sprint 2)
 
@@ -135,6 +170,7 @@ Semantic versioning, applied to the **architecture** (not the product):
 | [016](../adr/016-layer-port-ownership.md) | Layer and Port Ownership | **New** [C] |
 | [017](../adr/017-cross-context-interaction.md) | Cross-Context Interaction | **New** [C] |
 | [018](../adr/018-architecture-enforcement.md) | Architecture Enforcement | Implemented [S1], extended [S2] |
+| [019](../adr/019-athlete-bounded-context.md) | Distinct Athlete Bounded Context | **New** [S3] |
 
 ## Sprint 0.1 deliverable map
 

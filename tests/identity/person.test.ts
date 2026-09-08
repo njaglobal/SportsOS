@@ -11,7 +11,6 @@ function input(overrides: Partial<NewPersonInput> = {}): NewPersonInput {
     sportsIdValue: "SID1-ABCDEFGHJKMN" as Id<"SportsId">,
     displayName: "  Maria Santos  ",
     dateOfBirth: "2000-05-01",
-    guardianId: null,
     now: NOW,
     personCreatedEventId: "evt-created-1",
     sportsIdIssuedEventId: "evt-issued-1",
@@ -88,15 +87,6 @@ describe("createPerson", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected failure");
     expect(result.error.code).toBe("invalid_date_of_birth");
-  });
-
-  it("rejects a person who is their own guardian", () => {
-    const result = createPerson(
-      input({ guardianId: "person-1" as Id<"Person"> }),
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected failure");
-    expect(result.error.code).toBe("invalid_guardian");
   });
 });
 

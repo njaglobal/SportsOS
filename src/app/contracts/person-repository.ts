@@ -25,4 +25,10 @@ export type PersonPersistenceError =
 export interface PersonRepository {
   create(person: Person): Promise<Result<Person, PersonPersistenceError>>;
   findBySportsId(sportsId: Id<"SportsId">): Promise<Person | null>;
+  /**
+   * Existence/identity lookup. Used by other contexts' use cases (through the
+   * application layer) that must confirm a Person exists before acting — e.g.
+   * creating an AthleteProfile. Returns `null` when no such Person exists.
+   */
+  findById(personId: Id<"Person">): Promise<Person | null>;
 }

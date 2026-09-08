@@ -22,19 +22,30 @@ and never reissued to a different person. The Sports ID is **platform-global
 identity** [C], not tenant/organization-owned. See `identity-model.md`,
 `tenancy.md`, ADR-002, ADR-010.
 
-## R3. [C] A Person MAY have at most one AthleteProfile. A Person does not automatically become an athlete.
+## R3. [C][S3] A Person MAY have at most one AthleteProfile. A Person does not automatically become an athlete.
 
-An `AthleteProfile` is an optional sport-independent sporting identity
-projection. A Person may exist only as a coach, guardian, official, organizer,
-staff member, sponsor representative, etc., with no AthleteProfile. When an
-AthleteProfile exists, it is sport-independent. See ADR-003, ADR-010,
-`identity-model.md`.
+An `AthleteProfile` is an optional sport-independent sporting identity, owned by
+the dedicated **Athlete** bounded context [S3] (ADR-019), not Identity. A Person
+may exist only as a coach, guardian, official, organizer, staff member, sponsor
+representative, etc., with no AthleteProfile. When one exists it references the
+Person by `Id<"Person">` only, carries no Person identity data (no name, date of
+birth, or Sports ID), and is sport-independent (`id`, `personId`, `status`,
+`createdAt`). Uniqueness (one per Person, unique id) is enforced at the
+repository boundary. See ADR-003, ADR-019, `identity-model.md`,
+`docs/vertical-slices/create-athlete-profile.md`.
 
-## R4. AthleteProfile ↔ Sport is many-to-many.
+## R4. [S3] AthleteProfile ↔ Sport is many-to-many.
 
-`AthleteSportParticipation` links an AthleteProfile to many Sports (and
-Disciplines), and a Sport to many AthleteProfiles. A single athlete may
-participate in and win across multiple sports throughout their lifetime.
+`AthleteSportParticipation` (Athlete context) links one AthleteProfile to many
+Sports, and a Sport to many AthleteProfiles. It references the `Sport` by
+`Id<"Sport">` only — sport existence is checked through the application-facing
+`SportDirectory` query contract, never by importing the Sports Catalog domain.
+A single athlete may participate across multiple sports throughout their
+lifetime. It is participation only, NOT competition entry, registration, team
+membership, or result/ranking history. Leaving a sport is a non-destructive
+lifecycle change (`status: "ended"` + `endedAt`); participation is never
+deleted. See ADR-019, `sports-model.md`,
+`docs/vertical-slices/add-athlete-sport.md`.
 
 ## R5. Historical competition records must be auditable and protected from destructive mutation.
 
@@ -100,8 +111,8 @@ Entities are classified by ownership (see `tenancy.md`, ADR-010):
 **organization/tenant-owned**, **event-scoped**, **historical/audit**. Only
 organization/tenant-owned and event-scoped entities carry `tenantId`.
 Platform-global entities (Person, SportsId, Sport, Discipline) and
-person-owned entities (AthleteProfile) do NOT carry `tenantId`. Cross-tenant
-access to tenant-owned data is never implicit.
+person-owned entities (AthleteProfile, AthleteSportParticipation) do NOT carry
+`tenantId`. Cross-tenant access to tenant-owned data is never implicit.
 
 ## R15. Authorization must be permission-based, not hard-coded role checks.
 
@@ -133,11 +144,15 @@ A `Registration` has a `participantId` (AthleteProfile or Team) and a separate
 `payerPersonId`. A guardian may pay for a minor athlete. See
 `registration-model.md`, ADR-008.
 
-## R19. Minors/guardian relationships must be supportable.
+## R19. [S3] Minors/guardian relationships must be supportable, separately from Person.
 
-A `Person` may have a `guardianId` pointing to another `Person`. Guardian
-consent flows are modeled on this relationship. The architecture explicitly
-considers minors in retention/privacy [C]. See `identity-model.md`,
+Guardian relationships are **not** a field on `Person` — `Person` carries no
+`guardianId`. A guardian link is modelled as a separate `GuardianRelationship`
+in the Auth context, between two Persons, so the Person aggregate stays focused
+on identity. Guardian consent flows attach to that relationship. Date of birth
+is private identity data retained only on Person. The architecture explicitly
+considers minors in retention/privacy [C]. Guardian workflows are not
+implemented this sprint. See `identity-model.md`, `person-role-model.md`,
 `audit-integrity.md`, ADR-011.
 
 ## R20. [C] Historical sports records must not disappear because an account/entity is deleted — but blanket "soft delete only" is replaced by a layered retention model.

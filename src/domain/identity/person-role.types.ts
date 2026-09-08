@@ -87,8 +87,9 @@ export type PermissionScope =
   | { readonly kind: "person"; readonly personId: Id<"Person"> };
 
 /**
- * Guardian relationship — recorded on Person.guardianId for identity purposes.
- * The guardian scope is a Person scope, not an Organization scope.
+ * Guardian relationship — a separate relationship between two Persons, not a
+ * field on Person. [S3] Person carries no `guardianId`. The guardian scope is a
+ * Person scope, not an Organization scope.
  */
 export interface GuardianRelationship {
   readonly id: Id<"GuardianRelationship">;

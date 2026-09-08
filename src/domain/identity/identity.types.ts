@@ -35,8 +35,14 @@ export interface Person {
   readonly id: Id<"Person">;
   readonly sportsId: SportsId | null;
   readonly displayName: string;
+  /**
+   * Private identity data. Retained on the Person aggregate only; it must NOT be
+   * copied into AthleteProfile, emitted in any domain event, or surfaced through
+   * the future public Sports Passport by default. Guardian relationships are a
+   * SEPARATE concept (a GuardianRelationship in the Auth context) and are NOT
+   * owned by Person.
+   */
   readonly dateOfBirth: string | null;
-  readonly guardianId: Id<"Person"> | null;
   readonly lifecycleStatus: PersonLifecycleStatus;
 }
 

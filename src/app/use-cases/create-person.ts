@@ -15,7 +15,6 @@ import type { Id, Result } from "@shared/kernel";
 export interface CreatePersonInput {
   readonly displayName: string;
   readonly dateOfBirth?: string | null;
-  readonly guardianId?: string | null;
 }
 
 export interface CreatePersonOutput {
@@ -90,7 +89,6 @@ export class CreatePerson
       sportsIdValue,
       displayName: input.displayName,
       dateOfBirth: input.dateOfBirth ?? null,
-      guardianId: (input.guardianId ?? null) as Id<"Person"> | null,
       now,
       personCreatedEventId: this.deps.idGenerator.next("DomainEvent"),
       sportsIdIssuedEventId: this.deps.idGenerator.next("DomainEvent"),

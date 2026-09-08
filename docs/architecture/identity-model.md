@@ -35,8 +35,13 @@ erDiagram
   Person ||--o| SportsId : holds
   Person ||--o| AthleteProfile : "may project as (optional)"
   Person ||--o| User : "authenticates via (zero or more, over time)"
-  Person ||--o| Person : "guardian of (minors)"
 ```
+
+> **[S3]** `AthleteProfile` is now modelled in a dedicated **Athlete** bounded
+> context (`src/domain/athlete/`, ADR-019), not inside Identity. Identity remains
+> the source of personal identity; the Athlete context references the Person by
+> `Id<"Person">` only. Guardian relationships are **not** part of Person — they
+> are a separate `GuardianRelationship` concept in the Auth context.
 
 Note: Person → AthleteProfile is `||--o|` (zero or one), not `||--||` (exactly
 one). A Person may never have an AthleteProfile.
@@ -80,9 +85,10 @@ QR credential remains a separate, not-yet-implemented concept. The operation
 produces two domain facts — `PersonCreated` and `SportsIdIssued` — that carry
 only identifiers, never personal data.
 
-## AthleteProfile (corrected from "Athlete")
+## AthleteProfile [S3] (Athlete context)
 
-The `AthleteProfile` is a sport-independent sporting identity. It is:
+The `AthleteProfile` is a sport-independent sporting identity, now owned by the
+dedicated **Athlete** bounded context (ADR-019). It is:
 - **Optional** — a Person may never have one.
 - **At most one** per Person.
 - **Person-owned** [C] — not owned by any organization. An organization fields
@@ -90,27 +96,39 @@ The `AthleteProfile` is a sport-independent sporting identity. It is:
   the Person.
 - **Sport-independent** — no sport field. Sport linkage is via
   `AthleteSportParticipation`.
+- **Free of Person identity data** — it holds no display name, date of birth,
+  or Sports ID. Person remains the single source of those.
 
 ```typescript
 interface AthleteProfile {
   id: Id<"AthleteProfile">;
-  personId: Id<"Person">;
-  // no tenantId — person-owned
-  // no sportId — sport-independent
+  personId: Id<"Person">;      // references Identity by ID only
+  status: "active" | "inactive";
+  createdAt: ISODateString;
+  // no tenantId — person-owned; no sportId — sport-independent
+  // no name/dateOfBirth/sportsId — not duplicated from Person
 }
 ```
 
-## Minor / guardian relationships
+Creation and multi-sport participation are the Sprint 3 vertical slices
+(`docs/vertical-slices/create-athlete-profile.md`,
+`docs/vertical-slices/add-athlete-sport.md`).
 
-A `Person` may carry a `guardianId` pointing to another `Person`. This supports:
+## Private identity data [S3]
 
-- Guardian consent for minors.
-- Guardian-as-payer for registrations (R18).
-- Guardian-managed credentials for minors.
+`Person.dateOfBirth` is **private identity data**. It is retained on the Person
+aggregate only; it is never copied into `AthleteProfile`, never emitted in any
+domain event, and not surfaced through the future public Sports Passport by
+default.
 
-The relationship is modeled on Person, not on User, because identity (not
-login) is what persists. The `GuardianRelationship` is explicitly tracked for
-authorization scope (see `person-role-model.md`).
+## Minor / guardian relationships [S3]
+
+Guardian relationships are **NOT** owned by `Person` and `Person` carries no
+`guardianId`. A guardian link is a separate `GuardianRelationship` concept in
+the Auth context (see `person-role-model.md`, `bounded-contexts.md`), modelled
+as its own relationship between two Persons. This keeps the Person aggregate
+focused on identity. Guardian workflows (consent, guardian-as-payer) are not
+implemented this sprint.
 
 ## [C] Retention and lifecycle (replaces blanket "soft delete only")
 
@@ -143,11 +161,12 @@ anonymization decisions. Privacy workflows are NOT implemented this sprint.
 
 ## Sports Passport (future)
 
-The athlete Sports Passport is a **derived view** over:
-- the Person's identity,
-- their AthleteProfile (if it exists),
-- their `AthleteSportParticipation` entries,
-- their verified `Achievement` records.
+The athlete Sports Passport is a **read model / projection**, NOT an aggregate
+and NOT stored inside `AthleteProfile`. It will be composed at read time from
+multiple contexts, eventually including: Person / Sports ID, AthleteProfile,
+sports, teams, verified competition participation, results, championships,
+achievements, statistics, and rankings.
 
-It is not a separate aggregate; it is a read model composed from multiple
-contexts. No persistence for it is built this sprint.
+By default it does **not** expose private identity data such as date of birth.
+No persistence or projection for it is built this sprint (ADR-019 records the
+decision).

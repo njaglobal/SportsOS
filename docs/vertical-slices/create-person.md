@@ -20,10 +20,11 @@ replaced through normal mutation.
 - **Domain** (`src/domain/identity/`):
   - `person.ts` — `createPerson(input): Result<CreatedPerson, DomainError>` is a
     pure factory. It validates identity (trimmed display name, non-empty, ≤200
-    chars; optional valid past calendar date of birth; guardian ≠ self;
-    non-empty Sports ID value), builds an active Person, and produces both
-    domain events. `renamePerson` demonstrates a normal mutation that preserves
-    the Sports ID.
+    chars; optional valid past calendar date of birth; non-empty Sports ID
+    value), builds an active Person, and produces both domain events.
+    `renamePerson` demonstrates a normal mutation that preserves the Sports ID.
+    [S3] Person carries no `guardianId`; guardian relationships live in the Auth
+    context, and date of birth is private identity data.
   - `sports-id.ts` — `issueSportsId(value, issuedAt)` value object.
   - `identity.events.ts` — `PersonCreated` and `SportsIdIssued`. Both are
     emitted, both carry only identifiers/timestamps, neither carries personal

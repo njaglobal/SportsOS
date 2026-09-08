@@ -13,6 +13,7 @@
 ```mermaid
 flowchart LR
   Identity["Identity & Sports ID"]
+  Athlete["Athlete Profiles"]
   Auth["Memberships & Authorization"]
   Sports["Sports Catalog"]
   Orgs["Organizations & Tenancy"]
@@ -24,6 +25,8 @@ flowchart LR
   Credentials["QR Credentials & Verification"]
 
   Identity --> Auth
+  Identity --> Athlete
+  Sports --> Athlete
   Sports --> Competition
   Orgs --> Competition
   Orgs --> Registration
@@ -44,14 +47,15 @@ requirement. No context imports another context's domain internals directly.
 
 ### 1. Identity & Sports ID
 
-**Owns:** `Person`, `SportsId`, `AthleteProfile`, minor/guardian relationship,
-identity lifecycle (active/deactivated/archived/anonymized).
+**Owns:** `Person`, `SportsId`, identity lifecycle
+(active/deactivated/archived/anonymized).
 **Ownership classification [C]:** Person and SportsId are platform-global.
-AthleteProfile is person-owned.
 **Responsibility:** the permanent, platform-issued identity that survives
-account lifecycle changes. Issues Sports IDs. Manages AthleteProfile creation
-(optional, at most one per Person). Never deletes a Person's historical
-identity. See `identity-model.md`, ADR-002, ADR-010, ADR-011.
+account lifecycle changes. Issues Sports IDs. Treats date of birth as private
+identity data. Never deletes a Person's historical identity. Guardian
+relationships are NOT owned here — they live in the Auth context as
+`GuardianRelationship`. `AthleteProfile` moved out to the dedicated Athlete
+context [S3] (ADR-019). See `identity-model.md`, ADR-002, ADR-010, ADR-011.
 
 ### 2. Memberships & Authorization
 
@@ -141,13 +145,31 @@ lifecycle (issued/active/expired/revoked/replaced/compromised), and tracking
 identity verification levels. SportsId and QrCredential are separate. See
 `qr-credentials-model.md`, ADR-007.
 
+### 11. Athlete Profiles [S3]
+
+**Owns:** `AthleteProfile`, `AthleteSportParticipation`.
+**Ownership classification [C]:** Person-owned (no `tenantId`).
+**Responsibility:** the sport-independent sporting identity of a Person
+(optional, at most one per Person) and its zero-or-more sport participations
+(many-to-many with the Sports Catalog). References `Person` by `Id<"Person">`
+and `Sport` by `Id<"Sport">` only — it imports no other context's internals.
+Holds no Person identity data (no name, date of birth, or Sports ID). Leaving
+a sport is a non-destructive lifecycle change, never a delete. Publishes
+`AthleteProfileCreated` and `AthleteSportAdded` after persistence. Does NOT own
+competition entry, registration, team membership, results, or rankings. The
+future Sports Passport is a read model composed across contexts, not stored
+here. See `identity-model.md`, `sports-model.md`, ADR-019,
+`docs/vertical-slices/create-athlete-profile.md`,
+`docs/vertical-slices/add-athlete-sport.md`.
+
 ## [C] Entity ownership classification matrix
 
 | Entity | Owning context | Ownership classification | Has `tenantId`? |
 |---|---|---|---|
 | Person | Identity | Platform-global | No |
 | SportsId | Identity | Platform-global | No |
-| AthleteProfile | Identity | Person-owned | No |
+| AthleteProfile | Athlete | Person-owned | No |
+| AthleteSportParticipation | Athlete | Person-owned | No |
 | PlatformRoleAssignment | Auth | Platform-global | No |
 | OrganizationMembership | Auth | Organization/tenant-owned | Yes |
 | OrganizationRoleAssignment | Auth | Organization/tenant-owned | Yes |
@@ -170,7 +192,8 @@ identity verification levels. SportsId and QrCredential are separate. See
 ## [C] Revised aggregate candidates
 
 - **Person** aggregate (Identity) — root: `Person`; includes `SportsId`. Platform-global.
-- **AthleteProfile** aggregate (Identity) — root: `AthleteProfile`; person-owned, optional.
+- **AthleteProfile** aggregate (Athlete) — root: `AthleteProfile`; person-owned, optional; references `Person` by ID.
+- **AthleteSportParticipation** aggregate (Athlete) — root: `AthleteSportParticipation`; references `AthleteProfile` and `Sport` by ID.
 - **PlatformRoleAssignment** aggregate (Auth) — root: `PlatformRoleAssignment`.
 - **OrganizationMembership** aggregate (Auth) — root: `OrganizationMembership`; includes role assignments.
 - **TeamMembership** aggregate (Auth) — root: `TeamMembership`.

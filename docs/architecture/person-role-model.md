@@ -106,7 +106,8 @@ flowchart LR
 The `GuardianRelationship` is a separate concept from org membership. It is
 scoped to a Person (the minor), not to an Organization. It grants permissions
 to act on behalf of the minor (registrations, payments, credential management).
-The relationship is also recorded on `Person.guardianId` for identity purposes.
+[S3] The relationship is modelled solely as a `GuardianRelationship` between two
+Persons; it is NOT a field on `Person` (no `guardianId`). See ADR-019.
 
 ## Multi-role invariants
 

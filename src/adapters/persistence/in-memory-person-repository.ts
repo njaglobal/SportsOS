@@ -41,6 +41,10 @@ export class InMemoryPersonRepository implements PersonRepository {
     return this.byPersonId.get(personId) ?? null;
   }
 
+  async findById(personId: Id<"Person">): Promise<Person | null> {
+    return this.byPersonId.get(personId) ?? null;
+  }
+
   /** Inspection helper for tests: number of stored persons. */
   get size(): number {
     return this.byPersonId.size;

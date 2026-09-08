@@ -26,7 +26,9 @@ Separate three concepts:
 
 1. **Person** — the permanent natural/legal identity. Owns the Sports ID.
    Survives account closure via a layered lifecycle (deactivation → archival →
-   anonymization) [C]. Carries `guardianId` for minor/guardian relationships.
+   anonymization) [C]. [S3] Guardian relationships are NOT a field on Person
+   (no `guardianId`); they are a separate `GuardianRelationship` (see ADR-019,
+   `identity-model.md`).
    **Platform-global** [C] — no `tenantId`; does not belong to any org/event.
 2. **User** — an authentication subject (credential holder). Tied to a login
    account; can be disabled/recreated. A minor may have no User; a guardian's
@@ -75,7 +77,8 @@ See `identity-model.md`.
 ## Compliance
 
 - `Person.sportsId` is `SportsId | null` (issued once).
-- `Person.guardianId` is `Id<"Person"> | null`.
+- [S3] `Person` carries no `guardianId`; guardian links are a separate
+  `GuardianRelationship` (ADR-019).
 - `Person` has no `tenantId` [C] — platform-global.
 - `Person.lifecycleStatus` tracks layered lifecycle [C].
 - Application layer enforces one-Sports-ID-per-Person and at-most-one-AthleteProfile-per-Person [C].

@@ -31,44 +31,47 @@ A Discipline carries a `measure` that drives how its events are scored:
 | `head_to_head` | boxing match |
 | `placement` | road race finishing order |
 
-## Athlete ↔ Sport (many-to-many)
+## Athlete ↔ Sport (many-to-many) [S3]
 
+The Athlete↔Sport relationship is owned by the dedicated **Athlete** bounded
+context (ADR-019), not by the Sports Catalog. The Sports Catalog owns only the
+catalog (`Sport`, `Discipline`) and knows nothing about athletes; the Athlete
+context references a `Sport` by `Id<"Sport">` and copies no catalog data.
 `AthleteSportParticipation` is the many-to-many link:
 
 ```typescript
+// src/domain/athlete/athlete.types.ts
 interface AthleteSportParticipation {
-  athleteId: Id<"Athlete">;
+  id: Id<"AthleteSportParticipation">;
+  athleteProfileId: Id<"AthleteProfile">;
   sportId: Id<"Sport">;
-  disciplineId: Id<"Discipline"> | null;
-  active: boolean;
+  status: "active" | "ended";
+  startedAt: ISODateString;
+  endedAt: ISODateString | null;
 }
 ```
 
-A single Athlete (one per Person, sport-independent — R3) may participate in
-many sports and disciplines over their lifetime (R4). `active` indicates
-current participation; historical participation is retained.
+A single `AthleteProfile` (one per Person, sport-independent — R3) may
+participate in many sports simultaneously (R4). Leaving a sport is a
+non-destructive lifecycle change (`status: "ended"` + `endedAt`); participation
+is never deleted. This relationship is participation only — it is NOT
+competition entry, registration, team membership, or result/ranking history.
 
 ```mermaid
 erDiagram
-  Athlete ||--o{ AthleteSportParticipation : "participates in"
-  Sport ||--o{ AthleteSportParticipation : "has"
+  AthleteProfile ||--o{ AthleteSportParticipation : "participates in"
+  Sport ||--o{ AthleteSportParticipation : "referenced by"
   Sport ||--o{ Discipline : "contains"
   Discipline }o--|| Sport : "belongs to"
 ```
 
-## Athlete is sport-independent
+## AthleteProfile is sport-independent [S3]
 
-The `Athlete` entity carries only `personId` and `tenantId` — no sport. This is
-the core of ADR-003: athlete identity is independent of sport. Sport-specific
-data lives on `AthleteSportParticipation`, not on `Athlete`.
-
-```typescript
-interface Athlete {
-  id: Id<"Athlete">;
-  personId: Id<"Person">;
-  tenantId: Id<"Tenant">;
-}
-```
+The `AthleteProfile` carries only `personId`, `status`, and `createdAt` — no
+sport, no tenantId, and no Person identity data. This is the core of ADR-003:
+athlete identity is independent of sport. Sport linkage lives on
+`AthleteSportParticipation`, not on `AthleteProfile`. See `identity-model.md`
+and ADR-019 for the full model.
 
 ## Sport vs Competition Event
 
@@ -88,6 +91,9 @@ catalog is global to keep cross-tenant competition semantics consistent.
 
 ## Sports Passport (future, derived)
 
-The Sports Passport is a derived read model aggregating a Person's identity,
-Athlete projection, sport participations, and verified achievements. It is not
-an aggregate; it is composed from multiple contexts. Not built this sprint.
+The Sports Passport is a derived **read model / projection** aggregating a
+Person's identity, AthleteProfile, sport participations, and (eventually) teams,
+verified competition participation, results, achievements, statistics, and
+rankings. It is NOT an aggregate and is not stored inside `AthleteProfile`; it
+is composed from multiple contexts at read time and excludes private identity
+data (e.g. date of birth) by default. Not built this sprint (ADR-019).
